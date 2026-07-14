@@ -26,7 +26,9 @@
              [:link {:rel "preconnect" :href "https://fonts.gstatic.com" :crossorigin "anonymous"}]
              [:link {:rel "stylesheet"
                      :href "https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400..700&display=swap"}]))
-     [:style [:hiccup/raw (str css "\n" dds/ext-css "\n" (or app-css ""))]]]
+     ;; html.core は style/script を raw-text tag として無エスケープ出力する —
+     ;; 子は素の文字列で渡す(:hiccup/raw で包むとベクタごと文字列化され CSS が壊れる。実測)
+     [:style (str css "\n" dds/ext-css "\n" (or app-css ""))]]
     (or head []))
    (into [:body] body)])
 
