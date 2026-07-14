@@ -6,7 +6,7 @@ ADR-2607141915（com-junkawasaki/root）。
 
 - markup / class 名（`dads-*`）は上流の HTML 例に忠実。CSS は
   `resources/jp_go_dds/dds.css` に vendor（先頭コメントに上流 commit と MIT 表記。
-  `scripts/vendor.sh <上流 clone>` で再生成 — 手編集禁止）。
+  `nbb scripts/vendor.cljs <上流 clone>` で再生成 — 手編集禁止）。
 - **light mode 固定**（上流に dark palette は無い。`page` が
   `color-scheme: light` を明示するので OS が dark でも light で描画される）。
 - 上流に無い layout 補助（container / section / grid / stack / card / hero）は
