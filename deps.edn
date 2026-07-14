@@ -1,0 +1,12 @@
+{:paths ["src" "resources"]
+ ;; jp-go-digital-design-system — デジタル庁デザインシステム(DADS)の HTML
+ ;; コンポーネント例を cljc hiccup 化。ADR-2607141915 (com-junkawasaki/root)。
+ ;; CSS は上流(MIT)を vendor(resources/jp_go_dds/dds.css、scripts/vendor.sh)。
+ :deps {org.clojure/clojure {:mvn/version "1.12.0"}
+        io.github.kotoba-lang/html {:local/root "../html"}}
+ :aliases
+ {:test {:extra-paths ["test"]
+         :extra-deps  {io.github.cognitect-labs/test-runner
+                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+         :main-opts   ["-m" "cognitect.test-runner"]
+         :exec-fn cognitect.test-runner.api/test}}}
