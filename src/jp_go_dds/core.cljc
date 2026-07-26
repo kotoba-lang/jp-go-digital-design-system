@@ -125,6 +125,73 @@
   ([] (divider {}))
   ([_opts] [:hr {:class "dads-divider"}]))
 
+;; notification-banner の icon path は上流 src/components/notification-banner/
+;; {success,error,warning,info-1}.html をそのまま写したもの。fill="Canvas" も
+;; 上流どおり(CSS system color = バナー背景色で抜く指定)。
+(def ^:private banner-icons
+  {:success {:label "成功"
+             :paths [[:circle {:cx 12 :cy 12 :r 10 :fill "currentcolor"}]
+                     [:path {:d "m17.6 9.6-7 7-4.3-4.3L7.7 11l2.9 2.9 5.7-5.6 1.3 1.4Z" :fill "Canvas"}]]}
+   :error   {:label "エラー"
+             :paths [[:path {:d "M8.25 21 3 15.75v-7.5L8.25 3h7.5L21 8.25v7.5L15.75 21h-7.5Z" :fill "currentcolor"}]
+                     [:path {:d "m12 13.4-2.85 2.85-1.4-1.4L10.6 12 7.75 9.15l1.4-1.4L12 10.6l2.85-2.85 1.4 1.4L13.4 12l2.85 2.85-1.4 1.4L12 13.4Z" :fill "Canvas"}]]}
+   :warning {:label "警告"
+             :paths [[:path {:d "M1 21 12 2l11 19H1Z" :fill "currentcolor"}]
+                     [:path {:d "M13 15h-2v-5h2v5Z" :fill "Canvas"}]
+                     [:circle {:cx 12 :cy 17 :r 1 :fill "Canvas"}]]}
+   :info-1  {:label "インフォメーション"
+             :paths [[:circle {:cx 12 :cy 12 :r 10 :fill "currentcolor"}]
+                     [:circle {:cx 12 :cy 8 :r 1 :fill "Canvas"}]
+                     [:path {:d "M11 11h2v6h-2z" :fill "Canvas"}]]}
+   :info-2  {:label "インフォメーション"
+             :paths [[:circle {:cx 12 :cy 12 :r 10 :fill "currentcolor"}]
+                     [:circle {:cx 12 :cy 8 :r 1 :fill "Canvas"}]
+                     [:path {:d "M11 11h2v6h-2z" :fill "Canvas"}]]}})
+
+(defn notification-banner
+  "DADS notification-banner。opts:
+  :type(:success|:error|:warning|:info-1|:info-2 既定 :info-1)
+  :style(\"standard\"|\"color-chip\" 既定 \"standard\")
+  :heading(見出しテキスト。必須相当) :heading-level(既定 2)
+  :timestamp({:datetime \"2024-07-01\" :text \"2024年7月1日\"})
+  :actions(hiccup の seq。無ければ actions ブロックを出さない)
+  :id(root の id) :attrs(root への追加属性)
+
+  上流との差分: 上流の例は常に閉じるボタンを持つが、閉じる挙動は JS 依存なので
+  本ライブラリでは既定で出さない(静的 SSR ページに動かない閉じるボタンを置かない)。
+  必要なら :closable? true + :close-id で上流どおりの markup を出す。"
+  [{:keys [type style heading heading-level timestamp actions id attrs
+           closable? close-id close-label]
+    :or {type :info-1 style "standard" heading-level 2
+         close-label "閉じる" close-id "notification-banner-close"}}
+   & body]
+  (let [{:keys [label paths]} (get banner-icons type (get banner-icons :info-1))]
+    [:div (cond-> (merge {:class "dads-notification-banner"
+                          :data-style style
+                          :data-type (name type)}
+                         attrs)
+            id (assoc :id id))
+     [(keyword (str "h" heading-level)) {:class "dads-notification-banner__heading"}
+      (into [:svg {:class "dads-notification-banner__icon" :width 24 :height 24
+                   :viewBox "0 0 24 24" :role "img" :aria-label label}]
+            paths)
+      [:span {:class "dads-notification-banner__heading-text"} heading]]
+     (when closable?
+       [:button {:class "dads-notification-banner__close" :type "button"
+                 :aria-labelledby close-id}
+        [:svg {:class "dads-notification-banner__close-icon" :width 24 :height 24
+               :viewBox "0 0 24 24" :aria-hidden "true"}
+         [:path {:d "m6.4 18.6-1-1 5.5-5.6-5.6-5.6 1.1-1 5.6 5.5 5.6-5.6 1 1.1L13 12l5.6 5.6-1 1L12 13l-5.6 5.6Z"
+                 :fill "currentcolor"}]]
+        [:span {:id close-id :class "dads-notification-banner__close-label"} close-label]])
+     (into [:div {:class "dads-notification-banner__body"}
+            (when timestamp
+              [:p {:class "dads-notification-banner__timestamp"}
+               [:time {:datetime (:datetime timestamp)} (:text timestamp)]])]
+           body)
+     (when (seq actions)
+       (into [:div {:class "dads-notification-banner__actions"}] actions))]))
+
 ;; --- layout 拡張(上流に無い。dds-ext-* prefix、ext-css が対) --------------------
 
 (def ext-css
