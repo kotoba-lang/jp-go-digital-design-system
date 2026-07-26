@@ -17,7 +17,15 @@ ADR-2607141915（com-junkawasaki/root）。
 ## 収録コンポーネント（上流 subset）
 
 button / heading / accordion / input-text / textarea / checkbox /
-form-control-label / table / chip-label / divider / notification-banner(css)
+form-control-label / table / chip-label / divider / notification-banner
+
+`notification-banner` は `:type` に `:success` / `:error` / `:warning` /
+`:info-1` / `:info-2` を取り、icon path は上流 `src/components/
+notification-banner/{success,error,warning,info-1}.html` をそのまま写している
+（`fill="Canvas"` も上流どおり）。**上流との差分が1点だけある**: 上流の例は常に
+閉じるボタンを持つが、閉じる挙動は JS 依存なので既定では出さない（静的 SSR
+ページに動かないボタンを置かないため）。上流どおりの markup が要る場合は
+`:closable? true`（+ `:close-id`）を渡す。
 
 ## token 面 — `jp-go-dds.tokens`（共通化の接ぎ目）
 
