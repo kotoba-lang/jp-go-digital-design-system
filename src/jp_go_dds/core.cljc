@@ -86,6 +86,25 @@
               disabled (assoc :disabled true))]]
    [:span {:class "dads-checkbox__label"} label]])
 
+(defn radio
+  "DADS radio。markup は上流 radio/playground.html に忠実
+  (label.dads-radio > span.dads-radio__radio > input + span.dads-radio__label)。
+
+  CSS は core の束(dds.css)に入っていないので、使うページは
+  `(jp-go-dds.css/css-for [:radio])` を app-css の前に足すこと。
+
+  opts: :name(必須相当) :value :id :checked :disabled :size(既定 \"md\")"
+  [label {:keys [name value id checked disabled size] :or {size "md"}}]
+  [:label {:class "dads-radio" :data-size size}
+   [:span {:class "dads-radio__radio"}
+    [:input (cond-> {:class "dads-radio__input" :type "radio"}
+              name (assoc :name name)
+              value (assoc :value value)
+              id (assoc :id id)
+              checked (assoc :checked true)
+              disabled (assoc :disabled true))]]
+   [:span {:class "dads-radio__label"} label]])
+
 (defn form-field
   "DADS form-control-label で control を包む。
   opts: :label :for :support :size(既定 \"md\") :support-id
