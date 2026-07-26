@@ -79,6 +79,14 @@
       (is (str/includes? full "dads-notification-banner__actions"))
       (is (str/includes? full "dads-button")))))
 
+(deftest ext-css-contains-overflow
+  (testing "表は自分の中だけで横スクロールする(ページ全体を横スクロールさせない)"
+    ;; 上流 .dads-table は overflow を持たないため ext-css で封じ込める。
+    (is (str/includes? dds/ext-css ".dads-table{max-width:100%;min-width:0;overflow-x:auto}")))
+  (testing "page がその ext-css を inline する"
+    (is (str/includes? (page/->page {:title "t" :css ""} [:p "x"])
+                       "overflow-x:auto"))))
+
 (deftest page-is-light-fixed
   (let [p (page/->page {:title "t" :css ":root{--x:1}"} [:p "hi"])]
     (testing "light 固定(meta color-scheme light + theme-color 白)"

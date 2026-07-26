@@ -212,7 +212,13 @@
    ".dds-ext-lead{color:var(--color-neutral-solid-gray-600);font-size:1.125rem;line-height:1.7;margin:0}"
    "body{margin:0;background:var(--color-neutral-white);color:var(--color-neutral-solid-gray-800);"
    "font-family:var(--font-family-sans)}"
-   "img,svg{max-width:100%;height:auto}"))
+   "img,svg{max-width:100%;height:auto}"
+   ;; 上流 .dads-table は overflow を持たず .dads-table__table にも width 指定が
+   ;; 無いので、列が多い/内容が長い表は狭い viewport で**ページ全体**を横スクロール
+   ;; させる(実測: 500px 幅で body scrollWidth が clientWidth を超える)。表は
+   ;; 自分の中だけでスクロールさせる。上流 class を触るが、これは restyle ではなく
+   ;; はみ出しの封じ込め(ext-css は既に body / img,svg も指定している)。
+   ".dads-table{max-width:100%;min-width:0;overflow-x:auto}"))
 
 (defn container [& children] (into [:div {:class "dds-ext-container"}] children))
 (defn section
