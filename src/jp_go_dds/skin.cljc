@@ -14,7 +14,8 @@
   ここも生 CSS 記法は書かない —— `[selector decls]` のベクタ列(順序が要るため
   map にしない)を `css.core` が文字列化する。色・字送りは DADS token のみ参照し
   raw hex は書かない。"
-  (:require [css.core :as css]))
+  (:require [css.core :as css]
+            #?(:clj [clojure.java.io :as io])))
 
 (def skin-rules
   [;; --- 土台 ---------------------------------------------------------------
@@ -122,3 +123,13 @@
 (def skin-css
   "skin-rules を CSS 文字列にしたもの。vendored dds.css の **後ろ**に置くこと。"
   (css/css {:rules skin-rules}))
+
+#?(:clj
+   (defn dds+skin
+     "vendored `dds.css`(classpath resource)+ `skin-css` を連結した文字列。
+
+     JVM 側の消費者(cloud-itonami の各 `render_html.clj` など)が
+     `<style>` にそのまま流し込むための利便関数。dds.css が先、skin が後
+     —— skin は上流の素の見た目を上書きする側なので順序が要る。"
+     []
+     (str (slurp (io/resource "jp_go_dds/dds.css")) "\n" skin-css)))
