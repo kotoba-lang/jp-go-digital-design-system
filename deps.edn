@@ -3,7 +3,8 @@
  ;; コンポーネント例を cljc hiccup 化。ADR-2607141915 (com-junkawasaki/root)。
  ;; CSS は上流(MIT)を vendor(resources/jp_go_dds/dds.css、scripts/vendor.sh)。
  :deps {org.clojure/clojure {:mvn/version "1.12.0"}
-        io.github.kotoba-lang/html {:local/root "../html"}}
+        io.github.kotoba-lang/html {:local/root "../html"}
+        io.github.kotoba-lang/css {:local/root "../css"}}
  :aliases
  {:test {:extra-paths ["test"]
          :extra-deps  {io.github.cognitect-labs/test-runner

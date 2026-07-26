@@ -10,7 +10,8 @@
   - 上流に無い layout 補助(container/section/grid/stack/card/hero)は
     `dds-ext-*` prefix + ext-css で明確に区別する(上流 class と混ぜない)。
   - 純 cljc — 描画は kotoba-lang/html(html.core/->html)。"
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [css.core :as css]))
 
 ;; --- primitives ---------------------------------------------------------------
 
@@ -194,31 +195,47 @@
 
 ;; --- layout 拡張(上流に無い。dds-ext-* prefix、ext-css が対) --------------------
 
-(def ext-css
-  "上流に無い layout 補助。DADS token のみ参照(raw hex なし)。"
-  (str
-   ".dds-ext-container{max-width:64rem;margin-inline:auto;padding-inline:1rem}"
-   ".dds-ext-section{padding-block:3rem;border-top:1px solid var(--color-neutral-solid-gray-200)}"
-   ".dds-ext-section:first-of-type{border-top:none}"
-   ".dds-ext-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--dds-ext-grid-min,16rem),1fr));gap:1.5rem}"
-   ".dds-ext-grid>*{min-width:0}"
-   ".dds-ext-stack{display:flex;flex-direction:column;gap:var(--dds-ext-stack-gap,1rem)}"
-   ".dds-ext-row{display:flex;flex-wrap:wrap;gap:1rem;align-items:center}"
-   ".dds-ext-card{border:1px solid var(--color-neutral-solid-gray-200);border-radius:12px;"
-   "padding:1.5rem;background:var(--color-neutral-white)}"
-   ".dds-ext-hero{padding-block:4rem 3rem;text-align:center}"
-   ".dds-ext-hero .dads-heading{margin:0 0 1rem}"
-   ".dds-ext-center{display:flex;flex-direction:column;align-items:center;gap:1rem;text-align:center}"
-   ".dds-ext-lead{color:var(--color-neutral-solid-gray-600);font-size:1.125rem;line-height:1.7;margin:0}"
-   "body{margin:0;background:var(--color-neutral-white);color:var(--color-neutral-solid-gray-800);"
-   "font-family:var(--font-family-sans)}"
-   "img,svg{max-width:100%;height:auto}"
+(def ext-rules
+  "上流に無い layout 補助を **EDN で** 書いたもの(生 CSS 記法を持ち込まない)。
+  DADS token のみ参照し raw hex は書かない。
+
+  map ではなく `[selector decls]` の **ベクタ列**にしているのは順序のため —
+  Clojure の map は要素数が閾値を超えるとハッシュ順になり、CSS のカスケード
+  (後勝ち)が壊れる。"
+  [[".dds-ext-container" {:max-width "64rem" :margin-inline "auto" :padding-inline "1rem"}]
+   [".dds-ext-section" {:padding-block "3rem"
+                        :border-top "1px solid var(--color-neutral-solid-gray-200)"}]
+   [".dds-ext-section:first-of-type" {:border-top "none"}]
+   [".dds-ext-grid" {:display "grid"
+                     :grid-template-columns "repeat(auto-fill,minmax(var(--dds-ext-grid-min,16rem),1fr))"
+                     :gap "1.5rem"}]
+   [".dds-ext-grid>*" {:min-width 0}]
+   [".dds-ext-stack" {:display "flex" :flex-direction "column"
+                      :gap "var(--dds-ext-stack-gap,1rem)"}]
+   [".dds-ext-row" {:display "flex" :flex-wrap "wrap" :gap "1rem" :align-items "center"}]
+   [".dds-ext-card" {:border "1px solid var(--color-neutral-solid-gray-200)"
+                     :border-radius 12 :padding "1.5rem"
+                     :background "var(--color-neutral-white)"}]
+   [".dds-ext-hero" {:padding-block "4rem 3rem" :text-align "center"}]
+   [".dds-ext-hero .dads-heading" {:margin "0 0 1rem"}]
+   [".dds-ext-center" {:display "flex" :flex-direction "column" :align-items "center"
+                       :gap "1rem" :text-align "center"}]
+   [".dds-ext-lead" {:color "var(--color-neutral-solid-gray-600)"
+                     :font-size "1.125rem" :line-height 1.7 :margin 0}]
+   ["body" {:margin 0 :background "var(--color-neutral-white)"
+            :color "var(--color-neutral-solid-gray-800)"
+            :font-family "var(--font-family-sans)"}]
+   ["img,svg" {:max-width "100%" :height "auto"}]
    ;; 上流 .dads-table は overflow を持たず .dads-table__table にも width 指定が
    ;; 無いので、列が多い/内容が長い表は狭い viewport で**ページ全体**を横スクロール
    ;; させる(実測: 500px 幅で body scrollWidth が clientWidth を超える)。表は
    ;; 自分の中だけでスクロールさせる。上流 class を触るが、これは restyle ではなく
-   ;; はみ出しの封じ込め(ext-css は既に body / img,svg も指定している)。
-   ".dads-table{max-width:100%;min-width:0;overflow-x:auto}"))
+   ;; はみ出しの封じ込め(ext-rules は既に body / img,svg も指定している)。
+   [".dads-table" {:max-width "100%" :min-width 0 :overflow-x "auto"}]])
+
+(def ext-css
+  "ext-rules を CSS 文字列にしたもの(page が <style> に流し込む)。"
+  (css/css {:rules ext-rules}))
 
 (defn container [& children] (into [:div {:class "dds-ext-container"}] children))
 (defn section

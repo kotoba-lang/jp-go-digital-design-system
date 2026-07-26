@@ -34,6 +34,14 @@
 
 ;; ───────────────── 橋渡しの右辺が実在すること ─────────────────
 
+;; CSS は EDN(`bridge-rules` / `a11y-rules`)から kotoba-lang/css が文字列化する。
+;; 以前は生 CSS 文字列を直に書いていたのでアサーションも詰めた書式(`k:v;`)に
+;; 依存していたが、生成器の書式(`k: v;`)に追随して壊れ続けるのは本質でないので、
+;; **空白を潰して比較する**(宣言が存在するか、という意図だけを見る)。
+(defn- tight
+  "CSS 文字列から空白を落として書式非依存に比較できるようにする。"
+  [css] (str/replace css #"\s+" ""))
+
 (deftest every-bridged-primitive-exists-in-vendored-css
   (let [declared (declared-custom-properties vendored-css)
         referenced (referenced-vars (str/join " " (vals tokens/hig->dads)))
@@ -67,8 +75,8 @@
           (str "--hig-* 以外を再定義している: " k))))
 
   (testing "bridge-css は :root 宣言 1 本で、selector を持たない"
-    (is (str/starts-with? tokens/bridge-css ":root{"))
-    (is (str/ends-with? tokens/bridge-css "}"))
+    (is (str/starts-with? (tight tokens/bridge-css) ":root{"))
+    (is (str/ends-with? (tight tokens/bridge-css) "}"))
     (is (= 1 (count (re-seq #"\{" tokens/bridge-css)))
         "宣言ブロックが複数ある = DADS の class に触れている疑い")
     (is (not (str/includes? tokens/bridge-css ".dads-"))
@@ -76,27 +84,27 @@
 
 (deftest bridge-css-emits-every-mapping
   (doseq [[k v] tokens/hig->dads]
-    (is (str/includes? tokens/bridge-css (str k ":" v ";"))
+    (is (str/includes? (tight tokens/bridge-css) (tight (str k ":" v ";")))
         (str "bridge-css に " k " が出ていない"))))
 
 ;; ───────────────── a11y 補正 ─────────────────
 
 (deftest a11y-css-covers-the-three-audit-findings
   (testing "color-scheme の CSS 宣言(light 固定でも減点対象)"
-    (is (str/includes? tokens/a11y-css "color-scheme:light")))
+    (is (str/includes? (tight tokens/a11y-css) "color-scheme:light")))
   (testing "tap target 44px"
-    (is (str/includes? tokens/a11y-css "min-height:44px"))
+    (is (str/includes? (tight tokens/a11y-css) "min-height:44px"))
     (is (str/includes? tokens/a11y-css ".dads-button")))
   (testing "safe-area は左右下の全辺"
     (doseq [side ["left" "right" "bottom"]]
-      (is (str/includes? tokens/a11y-css (str "env(safe-area-inset-" side))
+      (is (str/includes? (tight tokens/a11y-css) (str "env(safe-area-inset-" side))
           (str side " が safe-area 未対応")))))
 
 (deftest skin-css-is-bridge-then-a11y
   (testing "順序: 橋渡しが先、補正が後。アプリの :app-css はさらに後で後勝ちする"
     (is (= tokens/skin-css (str tokens/bridge-css tokens/a11y-css)))
-    (is (< (str/index-of tokens/skin-css "--hig-color-tint")
-           (str/index-of tokens/skin-css "min-height:44px")))))
+    (is (< (str/index-of (tight tokens/skin-css) "--hig-color-tint")
+           (str/index-of (tight tokens/skin-css) "min-height:44px")))))
 
 ;; ───────────────── ヘルパ ─────────────────
 
