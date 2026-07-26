@@ -4,7 +4,18 @@
             [html.core :as html]
             [jp-go-dds.core :as dds]
             [jp-go-dds.page :as page]
-            [jp-go-dds.skin :as skin]))
+            [jp-go-dds.skin :as skin]
+            [jp-go-dds.css :as dcss]))
+
+(def dds-components
+  "vendor 済み component の一覧(生成物 components.edn と同じ内容)。"
+  [:accordion :blockquote :breadcrumb :button :calendar :carousel :checkbox
+   :chip-label :date-picker :description-list :disclosure :divider :drawer
+   :emergency-banner :file-upload :form-control-label :hamburger-menu-button
+   :heading :horizontal-menu :image :input-text :language-selector :link :list
+   :menu-list :menu-list-box :modal-dialog :notification-banner :page-navigation
+   :progress-indicator :radio :resource-list :search-box :select
+   :step-navigation :tab :table :textarea :toc :utility-link])
 
 (deftest button-markup
   (testing "上流 markup に忠実: class + data-type + data-size"
@@ -166,3 +177,21 @@
   (testing "required? false なら data-required=false"
     (is (str/includes? (html/->html (dds/form-field {:label "x" :requirement "任意"} [:i]))
                        "data-required=\"false\""))))
+
+(deftest radio-markup
+  (testing "上流 radio/playground.html に忠実"
+    (let [r (html/->html (dds/radio "ラベル" {:name "g" :value "1" :checked true}))]
+      (is (str/includes? r "<label class=\"dads-radio\" data-size=\"md\">"))
+      (is (str/includes? r "<span class=\"dads-radio__radio\">"))
+      (is (str/includes? r "class=\"dads-radio__input\" type=\"radio\""))
+      (is (str/includes? r "name=\"g\" value=\"1\" checked"))
+      (is (str/includes? r "dads-radio__label\">ラベル")))))
+
+(deftest css-subsetting
+  (testing "core は dds.css に入っているので css-for から落ちる")
+  (is (= [:date-picker :radio] (dcss/extra-components [:button :date-picker :table :radio])))
+  (testing "全 component が per-component ファイルとして vendor されている"
+    (is (= 40 (count dds-components)))
+    ;; card は example CSS のみのパターンなので一覧に出ない
+    (is (not (contains? (set dds-components) :card)))
+    (is (contains? (set dds-components) :select))))

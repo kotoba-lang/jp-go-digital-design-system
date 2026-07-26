@@ -21,15 +21,37 @@ form-control-label / table / chip-label / divider / notification-banner /
 select / link / list
 
 上流 41 エントリのうち **40 が正式コンポーネント**(各 `c/c.css` を持つ)で、
-`card` だけがパターン(example CSS のみ)。現在 vendor 済みは 14 なので
-**26 が未 vendor** —— 増やすときは `scripts/vendor.cljs` の `components` に
-名前を足して再 vendor する(同じ upstream commit に固定すれば既存 CSS は
-1 行も変わらない。実測: select/link/list 追加は +215 行、既存差分 0)。
+`card` だけがパターン(example CSS のみ)。**40 件すべてを vendor 済み**。
 
-未 vendor 26: blockquote / breadcrumb / calendar / carousel / date-picker /
-description-list / disclosure / drawer / emergency-banner / file-upload /
-hamburger-menu-button / horizontal-menu / image / language-selector /
-menu-list / menu-list-box / modal-dialog / page-navigation /
+## CSS の配り方 —— `dds.css` と `css-for`
+
+この design system の CSS は各ページの `<style>` に **inline** される(外部リクエスト
+ゼロが設計方針)。40 component を全部束ねると global 込みで約 172KB になり、
+core だけの 72KB から **+100KB**。cloud-itonami だけで 713 ページあるので、
+使わない component まで常時配ると全ページが太る。
+
+そこで 2 段構えにしている:
+
+| 用途 | 使うもの | 大きさ |
+|---|---|---|
+| 既定(core 14 component) | `resources/jp_go_dds/dds.css` | 約 72KB |
+| 追加で 1〜2 個だけ要る | `dds.css` + `(jp-go-dds.css/css-for [:date-picker])` | +数 KB |
+| 素の markup を広く塗る | `dds.css` + `jp-go-dds.skin/skin-css` | +4KB |
+| 全部(ドキュメント用途) | `(jp-go-dds.css/all-css)` | 約 185KB |
+
+`css-for` は **core に既に入っている component を黙って落とす**(同じ custom
+property の二重定義を避けるため)。`resources/jp_go_dds/components/<name>.css` に
+1 ファイルずつ置いてあるので、nbb など resource が使えない実行系からは
+`jp-go-dds.css/component-path` でパスだけ取って呼び出し側で読む。
+
+**core 14**(= `dds.css` に束ねてある): button / heading / accordion / input-text /
+textarea / checkbox / form-control-label / table / chip-label / divider /
+notification-banner / select / link / list
+
+**per-component で追加できる 26**: blockquote / breadcrumb / calendar / carousel /
+date-picker / description-list / disclosure / drawer / emergency-banner /
+file-upload / hamburger-menu-button / horizontal-menu / image /
+language-selector / menu-list / menu-list-box / modal-dialog / page-navigation /
 progress-indicator / radio / resource-list / search-box / step-navigation /
 tab / toc / utility-link
 
