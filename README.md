@@ -17,7 +17,21 @@ ADR-2607141915（com-junkawasaki/root）。
 ## 収録コンポーネント（上流 subset）
 
 button / heading / accordion / input-text / textarea / checkbox /
-form-control-label / table / chip-label / divider / notification-banner
+form-control-label / table / chip-label / divider / notification-banner /
+select / link / list
+
+上流 41 エントリのうち **40 が正式コンポーネント**(各 `c/c.css` を持つ)で、
+`card` だけがパターン(example CSS のみ)。現在 vendor 済みは 14 なので
+**26 が未 vendor** —— 増やすときは `scripts/vendor.cljs` の `components` に
+名前を足して再 vendor する(同じ upstream commit に固定すれば既存 CSS は
+1 行も変わらない。実測: select/link/list 追加は +215 行、既存差分 0)。
+
+未 vendor 26: blockquote / breadcrumb / calendar / carousel / date-picker /
+description-list / disclosure / drawer / emergency-banner / file-upload /
+hamburger-menu-button / horizontal-menu / image / language-selector /
+menu-list / menu-list-box / modal-dialog / page-navigation /
+progress-indicator / radio / resource-list / search-box / step-navigation /
+tab / toc / utility-link
 
 `notification-banner` は `:type` に `:success` / `:error` / `:warning` /
 `:info-1` / `:info-2` を取り、icon path は上流 `src/components/
