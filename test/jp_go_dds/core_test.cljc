@@ -3,7 +3,8 @@
             [clojure.string :as str]
             [html.core :as html]
             [jp-go-dds.core :as dds]
-            [jp-go-dds.page :as page]))
+            [jp-go-dds.page :as page]
+            [jp-go-dds.skin :as skin]))
 
 (deftest button-markup
   (testing "上流 markup に忠実: class + data-type + data-size"
@@ -111,3 +112,27 @@
     (testing "vendored css + ext css が inline される"
       (is (str/includes? p ":root{--x:1}"))
       (is (str/includes? p "dds-ext-container")))))
+
+;; ───────────────── 互換スキン ─────────────────
+
+(deftest skin-is-edn-authored
+  (testing "skin-rules も EDN データ(生 CSS 文字列を書かない)"
+    (is (vector? skin/skin-rules))
+    (is (every? (fn [[sel decls]] (and (string? sel) (map? decls))) skin/skin-rules))
+    (is (not-any? (fn [[_ decls]]
+                    (some #(and (string? %) (re-find #"[{};]" %)) (vals decls)))
+                  skin/skin-rules)))
+  (testing "raw hex を書かない(色は DADS token 経由)"
+    (is (not-any? (fn [[_ decls]]
+                    (some #(and (string? %) (re-find #"#[0-9a-fA-F]{3,8}\b" %)) (vals decls)))
+                  skin/skin-rules)))
+  (testing "governor の判定色は semantic token に載る"
+    (doseq [[sel token] {".ok" "success" ".warn" "warning" ".err,.critical" "error"}]
+      (let [decls (some (fn [[s d]] (when (= sel s) d)) skin/skin-rules)]
+        (is (some? decls) (str sel " が無い"))
+        (is (re-find (re-pattern token) (str (:color decls)))
+            (str sel " が semantic " token " token を使っていない")))))
+  (testing "横に長い表がページ全体を横スクロールさせない"
+    (let [t (some (fn [[s d]] (when (= "table" s) d)) skin/skin-rules)]
+      (is (= "auto" (:overflow-x t)))
+      (is (= "100%" (:max-width t))))))

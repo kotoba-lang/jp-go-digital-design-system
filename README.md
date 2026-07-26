@@ -79,6 +79,25 @@ nbb --classpath "src:test:../html/src" test/run_tests.cljs
 clojure -X:test   # JVM compat
 ```
 
+## 互換スキン (`jp-go-dds.skin`)
+
+既存の素朴な markup を **書き換えずに** DADS の見た目へ寄せるためのスキン。
+cloud-itonami の operator console(各 repo の `render_html.clj` が実 actor 実行から
+生成)や一部の product LP は、意味的な HTML と小さな class 語彙
+(`.ok` / `.warn` / `.err` / `.critical` / `.muted` / `.card` / `.badge` / `.banner`
+/ `.bar` / `.cta-*` …)だけで書かれていて、1 repo ずつ形が違う。構造を組み直すと
+セクション欠落の危険があるので、**markup は触らず `<style>` の中身だけ**を
+`dds.css` + `skin-css` に差し替える。
+
+```clojure
+(require '[jp-go-dds.skin :as skin])
+(str vendored-dds-css "\n" skin/skin-css)   ; skin は dds.css の後ろ
+```
+
+`skin-rules` も EDN(`[selector decls]` のベクタ列)。raw hex は書かず、判定色は
+DADS の semantic token(`--color-semantic-success-2` / `-warning-yellow-2` /
+`-error-1`)に載せている。
+
 ## kotoba-uiux 規約との関係
 
 このモノレポの標準 UI スタックは kotoba-ui（ADR-2607122200）。本ライブラリは
