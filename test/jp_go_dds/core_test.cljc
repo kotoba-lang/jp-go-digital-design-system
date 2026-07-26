@@ -136,3 +136,33 @@
     (let [t (some (fn [[s d]] (when (= "table" s) d)) skin/skin-rules)]
       (is (= "auto" (:overflow-x t)))
       (is (= "100%" (:max-width t))))))
+
+(deftest select-markup
+  (testing "上流 select/with-form-control-label.html に忠実な入れ子"
+    (let [s (html/->html (dds/select {:id "f" :name "n" :required true}
+                                     [["" "選択してください"] ["1" "足立区"]]))]
+      (is (str/includes? s "<span class=\"dads-select\">"))
+      (is (str/includes? s "<span class=\"dads-select__control\">"))
+      (is (str/includes? s "class=\"dads-select__select\" data-size=\"md\""))
+      (is (str/includes? s "dads-select__chevron"))
+      ;; chevron の path は上流のものをそのまま
+      (is (str/includes? s "M12 17L3 8L4 7L12 15L20 7L21 8L12 17Z"))
+      (testing "value 空の項目は placeholder(disabled+selected)"
+        (is (str/includes? s "<option value=\"\" disabled selected>選択してください</option>")))
+      (is (str/includes? s "<option value=\"1\">足立区</option>"))))
+  (testing "error があるときだけ error-text を出す"
+    (is (not (str/includes? (html/->html (dds/select {} [["a" "A"]])) "__error-text")))
+    (is (str/includes? (html/->html (dds/select {:error "＊必須です"} [["a" "A"]]))
+                       "dads-select__error-text"))))
+
+(deftest form-field-requirement-vs-status
+  (testing "必須マーカーは __requirement(data-required=true)。__status ではない"
+    (let [f (html/->html (dds/form-field {:label "氏名" :requirement "※必須" :required? true} [:i]))]
+      (is (str/includes? f "dads-form-control-label__requirement\" data-required=\"true\""))
+      (is (not (str/includes? f "__status")))))
+  (testing "__status は状態表示用として引き続き使える(別物)"
+    (is (str/includes? (html/->html (dds/form-field {:label "x" :status "任意"} [:i]))
+                       "dads-form-control-label__status")))
+  (testing "required? false なら data-required=false"
+    (is (str/includes? (html/->html (dds/form-field {:label "x" :requirement "任意"} [:i]))
+                       "data-required=\"false\""))))

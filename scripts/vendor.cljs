@@ -7,8 +7,16 @@
          '["child_process" :as cp])
 
 (def components
+  ;; 上流 41 エントリのうち、正式コンポーネント(c/c.css を持つ)は 40、
+  ;; card だけがパターン(example CSS のみ)なので vendor できない。
+  ;; ここに名前を足して再 vendor すれば増やせる。
   ["button" "heading" "accordion" "input-text" "textarea" "checkbox"
-   "form-control-label" "table" "chip-label" "divider" "notification-banner"])
+   "form-control-label" "table" "chip-label" "divider" "notification-banner"
+   ;; select: フォームの必須部品。以前「上流に無い」と誤認して各 app が
+   ;; 自前 CSS を書いていた(実際は vendor していなかっただけ)。
+   "select"
+   ;; link / list: skin が素の a / ul,ol,li を自前で塗っていた分を公式へ寄せる。
+   "link" "list"])
 
 (let [[upstream] *command-line-args*]
   (when-not (and upstream (fs/existsSync upstream))

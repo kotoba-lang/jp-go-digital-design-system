@@ -88,17 +88,58 @@
 
 (defn form-field
   "DADS form-control-label で control を包む。
-  opts: :label :for :support :status(例 \"必須\") :size(既定 \"md\") :support-id"
-  [{:keys [label for support status size support-id] :or {size "md"}} control]
+  opts: :label :for :support :size(既定 \"md\") :support-id
+  :requirement(必須/任意マーカーのテキスト) :required?(true で赤字)
+  :status(グレーの塗りバッジ。状態表示用で必須マーカーではない)"
+  [{:keys [label for support status requirement required? size support-id]
+    :or {size "md"}} control]
   [:div {:class "dads-form-control-label" :data-size size}
    [:label (cond-> {:class "dads-form-control-label__label"} for (assoc :for for))
     label
+    ;; 必須/任意の表示は __requirement(data-required=true で赤字)。
+    ;; __status はグレーの塗りバッジで、「入力済み」等の状態表示用の別物 ——
+    ;; 必須マーカーに __status を使うのは意味的に誤り(実測でこれをやっていた)。
+    (when requirement
+      [:span {:class "dads-form-control-label__requirement"
+              :data-required (if required? "true" "false")}
+       requirement])
     (when status [:span {:class "dads-form-control-label__status"} status])]
    (when support
      [:p (cond-> {:class "dads-form-control-label__support-text"}
            support-id (assoc :id support-id))
       support])
    [:div control]])
+
+(defn select
+  "DADS select。markup は上流 select/with-form-control-label.html に忠実
+  (span.dads-select > span.dads-select__control > select + chevron svg)。
+
+  opts: :id :name :size(既定 \"md\") :required :disabled :aria-describedby
+        :error(あれば dads-select__error-text を出す)
+        :attrs(select への追加属性)
+  options: [[value label] ...]。value が nil/\"\" の項目は placeholder として
+  disabled + selected にする(上流の「選択してください」と同じ扱い)。"
+  [{:keys [id name size required disabled aria-describedby error attrs]
+    :or {size "md"}}
+   options]
+  [:span {:class "dads-select"}
+   [:span {:class "dads-select__control"}
+    (into [:select (cond-> (merge {:class "dads-select__select" :data-size size} attrs)
+                     id (assoc :id id)
+                     name (assoc :name name)
+                     required (assoc :required true)
+                     disabled (assoc :disabled true)
+                     aria-describedby (assoc :aria-describedby aria-describedby))]
+          (map (fn [[v label]]
+                 (if (or (nil? v) (= "" v))
+                   [:option {:value "" :disabled true :selected true} label]
+                   [:option {:value v} label]))
+               options))
+    [:svg {:class "dads-select__chevron" :width 16 :height 16
+           :viewBox "0 0 24 24" :aria-hidden "true"}
+     [:path {:d "M12 17L3 8L4 7L12 15L20 7L21 8L12 17Z" :fill "currentcolor"}]]]
+   (when error
+     [:span {:class "dads-select__error-text"} error])])
 
 (defn table
   "DADS table。{:caption :headers [..] :rows [[..]..] :row-header? bool}
