@@ -74,8 +74,24 @@
    "--hig-palette-green" "var(--color-primitive-green-700)"
    "--hig-palette-red" "var(--color-primitive-red-800)"
    "--hig-palette-orange" "var(--color-primitive-orange-800)"
+   ;; --- 罫 / 塗り（サイト実測で使用頻度の高い順）---------------------------
+   ;; `--hig-hairline` は itonami.cloud で 25 箇所参照されていて、色トークンの
+   ;; 中でも影響が大きい。separator と同じ階調に寄せる。
+   "--hig-hairline" "var(--color-neutral-solid-gray-300)"
+   "--hig-color-opaque-separator" "var(--color-neutral-solid-gray-300)"
+   "--hig-color-system-fill" "var(--color-neutral-solid-gray-200)"
+   "--hig-color-placeholder-text" "var(--color-neutral-solid-gray-500)"
+   ;; grouped background は iOS のグループ表の概念で DADS に対応物が無い。
+   ;; 面としては通常背景と secondary 背景に潰すのが素直。
+   "--hig-color-system-grouped-background" "var(--color-neutral-solid-gray-50)"
+   "--hig-color-secondary-system-grouped-background" "var(--color-neutral-white)"
+   "--hig-color-tertiary-system-grouped-background" "var(--color-neutral-solid-gray-50)"
+   "--hig-color-tertiary-system-background" "var(--color-neutral-solid-gray-50)"
    ;; --- タイポグラフィ -----------------------------------------------------
    "--hig-font-text" "var(--font-family-sans)"
+   ;; 見出しも本文と同じ family。DADS は display 用の別 family を持たない
+   ;; ——持たないものを埋めるより、DADS の実際の姿に合わせる。
+   "--hig-font-display" "var(--font-family-sans)"
    ;; DADS は mono family を発行しない。HIG 側も具体名を持つのはここだけなので
    ;; system stack を書く（唯一の raw 値。font family は palette と違い vendor
    ;; 更新で変わらない種類の値なので、ここに置いても取り残されない）。
