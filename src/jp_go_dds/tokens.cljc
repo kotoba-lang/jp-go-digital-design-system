@@ -40,7 +40,8 @@
   を明示する理由）。`--hig-*` は本来 light/dark 両対応の契約なので、この橋を
   使う限り **dark は表現できない**。これは欠陥ではなく skin の選択であり、
   dark が要るアプリは DADS ではなく kotoba-ui skin を選ぶ、が正しい分岐。"
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [css.core :as css]))
 
 (def hig->dads
   "`--hig-*` 契約 → DADS primitive の対応表。
@@ -80,12 +81,19 @@
    ;; 更新で変わらない種類の値なので、ここに置いても取り残されない）。
    "--hig-font-mono" "ui-monospace,SFMono-Regular,Menlo,monospace"})
 
+(def bridge-rules
+  "`hig->dads` を `[selector decls]` の EDN 1 本にしたもの。
+  **生 CSS 記法は書かない** — 文字列化は kotoba-lang/css に任せる。
+
+  宣言は map ではなく **pair のベクタ**にする — map に入れ直すとハッシュ順に
+  なり `sort-by key` の決定論的な並びが消えるため(css.core/declarations は
+  pair の seq をそのまま受ける)。"
+  [[":root" (vec (sort-by key hig->dads))]])
+
 (def bridge-css
-  "`hig->dads` を `:root` 宣言 1 本にしたもの。`page` の `:app-css` より
-  **前**に出すこと（アプリが個別に上書きしたいときに後勝ちにするため）。"
-  (str ":root{"
-       (str/join (map (fn [[k v]] (str k ":" v ";")) (sort-by key hig->dads)))
-       "}"))
+  "`bridge-rules` を CSS にしたもの。`page` の `:app-css` より **前**に出すこと
+  （アプリが個別に上書きしたいときに後勝ちにするため）。"
+  (css/css {:rules bridge-rules}))
 
 (def a11y-css
   "DADS 素のままでは `kotoba-lang/design-quality` の決定論 audit が落とす
@@ -97,13 +105,15 @@
   2. tap target 44px — DADS の button/summary/input は既定でこれを下回る。
   3. safe-area — 上下左右いずれかが未対応だと減点。ここでは body の
      padding として全辺に効かせる（header などが独自に上書きしてよい）。"
-  (str ":root{color-scheme:light}"
-       ".dads-button,.dads-accordion__summary,.dads-input-text__input,"
-       ".dads-textarea__textarea,.dads-checkbox{min-height:44px}"
-       "body{"
-       "padding-left:env(safe-area-inset-left,0px);"
-       "padding-right:env(safe-area-inset-right,0px);"
-       "padding-bottom:env(safe-area-inset-bottom,0px)}"))
+  (css/css
+   {:rules
+    [[":root" {:color-scheme "light"}]
+     [(str ".dads-button,.dads-accordion__summary,.dads-input-text__input,"
+           ".dads-textarea__textarea,.dads-checkbox")
+      {:min-height 44}]
+     ["body" {:padding-left "env(safe-area-inset-left,0px)"
+              :padding-right "env(safe-area-inset-right,0px)"
+              :padding-bottom "env(safe-area-inset-bottom,0px)"}]]}))
 
 (def skin-css
   "アプリが実際に足すべきもの: `bridge-css` + `a11y-css`。

@@ -79,13 +79,27 @@
       (is (str/includes? full "dads-notification-banner__actions"))
       (is (str/includes? full "dads-button")))))
 
-(deftest ext-css-contains-overflow
+(deftest ext-css-is-edn-authored
+  (testing "ext-rules は EDN データ(生 CSS 文字列を持ち込まない)"
+    (is (vector? dds/ext-rules))
+    (is (every? (fn [[sel decls]] (and (string? sel) (map? decls))) dds/ext-rules))
+    ;; 値は全て EDN のスカラ/キーワード — CSS の宣言区切り(;)や
+    ;; ルール境界({ })が文字列に埋まっていないこと。
+    (is (not-any? (fn [[_ decls]]
+                    (some #(and (string? %) (re-find #"[{};]" %)) (vals decls)))
+                  dds/ext-rules)))
+  (testing "順序が保たれる(map だと要素数超過でハッシュ順になりカスケードが壊れる)"
+    (let [sels (mapv first dds/ext-rules)]
+      (is (< (.indexOf sels ".dds-ext-section")
+             (.indexOf sels ".dds-ext-section:first-of-type")))))
   (testing "表は自分の中だけで横スクロールする(ページ全体を横スクロールさせない)"
-    ;; 上流 .dads-table は overflow を持たないため ext-css で封じ込める。
-    (is (str/includes? dds/ext-css ".dads-table{max-width:100%;min-width:0;overflow-x:auto}")))
+    ;; 上流 .dads-table は overflow を持たないため ext-rules で封じ込める。
+    (is (= {:max-width "100%" :min-width 0 :overflow-x "auto"}
+           (some (fn [[sel decls]] (when (= ".dads-table" sel) decls)) dds/ext-rules)))
+    (is (str/includes? dds/ext-css "overflow-x: auto")))
   (testing "page がその ext-css を inline する"
     (is (str/includes? (page/->page {:title "t" :css ""} [:p "x"])
-                       "overflow-x:auto"))))
+                       "overflow-x: auto"))))
 
 (deftest page-is-light-fixed
   (let [p (page/->page {:title "t" :css ":root{--x:1}"} [:p "hi"])]
