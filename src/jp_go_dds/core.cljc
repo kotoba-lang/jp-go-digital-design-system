@@ -20,10 +20,17 @@
   :size(\"lg\"|\"md\"|\"sm\"|\"xs\" 既定 \"md\") :href(あれば <a>) :submit? :disabled :id :aria-label"
   ([label] (button label {}))
   ([label {:keys [type size href submit? disabled id aria-label]
+           extra :attrs
            :or {type :solid-fill size "md"}}]
-   (let [attrs (cond-> {:class "dads-button"
-                        :data-type (name type)
-                        :data-size size}
+   ;; :attrs は任意属性の passthrough(data-* / aria-* / hx-* 等)。上流の
+   ;; class / data-type / data-size は **後**に merge しており consumer からは
+   ;; 上書きできない — component の同一性を壊させないため。これが無いと
+   ;; consumer は selectable hook を得るために DADS button の CSS を app 側へ
+   ;; 複製することになる(kotoba-ui.shell が :attrs を持つのと同じ理由)。
+   (let [attrs (cond-> (merge (or extra {})
+                              {:class "dads-button"
+                               :data-type (name type)
+                               :data-size size})
                  id (assoc :id id)
                  aria-label (assoc :aria-label aria-label))]
      (if href
@@ -202,7 +209,12 @@
   map ではなく `[selector decls]` の **ベクタ列**にしているのは順序のため —
   Clojure の map は要素数が閾値を超えるとハッシュ順になり、CSS のカスケード
   (後勝ち)が壊れる。"
-  [[".dds-ext-container" {:max-width "64rem" :margin-inline "auto" :padding-inline "1rem"}]
+  [[".dds-ext-container" {:max-width "64rem" :margin-inline "auto"
+                          ;; page は viewport-fit=cover を張るので notch /
+                          ;; home indicator の領域はこちらの責任になる。これが
+                          ;; 無いと notched device で内容がその下に潜る。
+                          :padding-inline (str "max(1rem,env(safe-area-inset-left)) "
+                                               "max(1rem,env(safe-area-inset-right))")}]
    [".dds-ext-section" {:padding-block "3rem"
                         :border-top "1px solid var(--color-neutral-solid-gray-200)"}]
    [".dds-ext-section:first-of-type" {:border-top "none"}]
@@ -231,11 +243,37 @@
    ;; させる(実測: 500px 幅で body scrollWidth が clientWidth を超える)。表は
    ;; 自分の中だけでスクロールさせる。上流 class を触るが、これは restyle ではなく
    ;; はみ出しの封じ込め(ext-rules は既に body / img,svg も指定している)。
-   [".dads-table" {:max-width "100%" :min-width 0 :overflow-x "auto"}]])
+   [".dads-table" {:max-width "100%" :min-width 0 :overflow-x "auto"}]
+   ;; light-only を CSS にも明示する。上流デジタル庁に dark palette は無く
+   ;; (ADR-2607261600 決定2)、`page` は meta を張っているが、form control を
+   ;; light に従わせるには CSS 側の宣言も要る。dark を自作するのではなく
+   ;; 「light だけである」ことを述べている。
+   [":root" {:color-scheme "light"}]
+   ["body" {:padding-bottom "env(safe-area-inset-bottom)"}]])
+
+(def ext-media
+  "viewport / 入力デバイス依存の ext 規則。上流の vendored subset は
+  safe-area / tap-target / breakpoint を持たないため、DADS を素で使うと
+  kotoba-lang/design-quality の決定論的 HIG/WCAG 監査(ADR-2607132300)で
+  65.34 になる(safe-area 0.13 / tap-targets 0.13 / responsive 0.07 /
+  color-scheme 0.06 を落とす)。これは design system 層の欠落であって
+  個々のページの責任ではないので、各 consumer の app CSS ではなくここに置く。
+
+  entry が少ないので map の順序は問題にならない(ext-rules がベクタ列なのは
+  カスケード順のため — そちらの docstring 参照)。"
+  {;; HIG は touch で 44pt 以上を要求する。coarse pointer に限定し、desktop では
+   ;; DADS 自身の寸法を保つ(全環境で太らせない)。
+   "(pointer:coarse)"
+   [[".dads-button,.dads-accordion__summary" {:min-height "44px"}]]
+
+   "(max-width:48rem)"
+   [[".dds-ext-section" {:padding-block "2rem"}]
+    [".dds-ext-hero" {:padding-block "2.5rem 2rem"}]
+    [".dds-ext-grid" {:--dds-ext-grid-min "100%"}]]})
 
 (def ext-css
-  "ext-rules を CSS 文字列にしたもの(page が <style> に流し込む)。"
-  (css/css {:rules ext-rules}))
+  "ext-rules + ext-media を CSS 文字列にしたもの(page が <style> に流し込む)。"
+  (css/css {:rules ext-rules :media ext-media}))
 
 (defn container [& children] (into [:div {:class "dds-ext-container"}] children))
 (defn section
