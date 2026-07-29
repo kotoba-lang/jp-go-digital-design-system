@@ -191,3 +191,44 @@
      "`root-css` を vendored resource に対して適用した JVM 向け便宜版。"
      []
      (root-css (slurp (clojure.java.io/resource "jp_go_dds/dds.css")))))
+
+;; ── brand を残したまま DADS を採用する ───────────────────────────────────────
+
+(def brand-tokens
+  "**そのプロダクトの identity を運ぶ** `--hig-*`。
+
+  `--hig-color-tint` は accent token そのもの — kotoba-ui の theme map の
+  `:accent` はここに落ちる。橋渡しはこれを `var(--color-key-900)`
+  （デジタル庁の key blue `#0017c1`）に上書きするので、**bridge をそのまま
+  当てると全プロダクトが同じ青になり、各サイトのブランド色は出なくなる**。
+
+  これは government design system としては正しい既定（統一が目的）だが、
+  「DADS を使う」という指示から自明に導かれる結果ではない。実際 murakumo は
+  kotoba-ui 移行の際にブランドの indigo `#7C9CFF` を **byte-exact で維持**する
+  判断を明文で残しており（`cloud-murakumo.site.chrome`）、kotobase は teal
+  `#0f766e` を持っている。どちらも bridge をそのまま当てると消える。
+
+  そこで「typography・neutral・spacing・component は DADS、accent だけは
+  プロダクトのもの」を選べるようにする。除外する token をここに名前で置き、
+  `bridge-css-except` に渡す。"
+  #{"--hig-color-tint"})
+
+(defn bridge-rules-except
+  "`excluded`（`--hig-*` 名の集合）を **除いた** bridge rules。
+
+  除外した token は再定義されないので `shitsuke.hig` / `kotoba-ui.theme-css`
+  が出した元の値がそのまま残る — 未定義参照にはならない。`hig->dads` に
+  載せない token は HIG 既定にフォールバックする、というこの ns の既定の
+  ふるまいと同じ経路。"
+  [excluded]
+  (let [excluded (set (map ->custom-property excluded))]
+    [[":root" (vec (sort-by key (remove #(excluded (key %)) hig->dads)))]]))
+
+(defn bridge-css-except
+  "`bridge-rules-except` を CSS にしたもの。
+
+  ブランド色を保ったまま DADS を採用する既定の呼び方:
+
+      (bridge-css-except brand-tokens)"
+  [excluded]
+  (css/css {:rules (bridge-rules-except excluded)}))

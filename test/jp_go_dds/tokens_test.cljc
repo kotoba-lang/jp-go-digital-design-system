@@ -154,3 +154,25 @@
   (testing "vendor 形式が変わったら黙って空を返さず落ちる"
     (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error)
                  (tokens/root-css "/* no root block here */")))))
+
+(deftest brand-tokens-can-be-excluded-from-the-bridge
+  (testing "「typography・neutral は DADS、accent はプロダクトのもの」を選べる —
+            bridge をそのまま当てると --hig-color-tint が key blue に上書きされ、
+            全プロダクトが同じ青になる"
+    (let [full tokens/bridge-css
+          kept (tokens/bridge-css-except tokens/brand-tokens)]
+      (is (str/includes? full "--hig-color-tint"))
+      (is (not (str/includes? kept "--hig-color-tint"))
+          "除外した token は再定義されない = theme map の :accent がそのまま残る")
+      (testing "除外は accent だけで、他の橋渡しは全て残る"
+        (is (str/includes? kept "--hig-color-label"))
+        (is (= (dec (count tokens/hig->dads))
+               (count (second (first (tokens/bridge-rules-except tokens/brand-tokens))))))))))
+
+(deftest bridge-except-accepts-either-token-spelling
+  (testing "->custom-property を通すので \"tint\" でも \"--hig-color-tint\" でも同じ"
+    (is (= (tokens/bridge-rules-except #{"--hig-color-tint"})
+           (tokens/bridge-rules-except #{"color-tint"})))))
+
+(deftest excluding-nothing-equals-the-plain-bridge
+  (is (= tokens/bridge-rules (tokens/bridge-rules-except #{}))))
