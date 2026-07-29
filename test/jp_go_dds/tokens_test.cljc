@@ -133,3 +133,24 @@
                "--hig-color-quaternary-system-fill" "--hig-color-system-background"
                "--hig-font-text" "--hig-font-mono"]]
       (is (tokens/bridged? t) (str t " の橋渡しが無い")))))
+
+(deftest root-css-is-an-extract-not-a-copy
+  (testing "primitive だけを切り出す — bridge を使うが dads-* markup は使わない
+            アプリ（既存の kotoba-ui ページを DADS の色に寄せるだけ）が、
+            component CSS 込みの全量を焼かずに済むように"
+    (let [r (tokens/root-css vendored-css)]
+      (is (str/starts-with? r ":root {"))
+      (is (str/ends-with? r "\n}"))
+      (is (< (count r) (quot (count vendored-css) 4))
+          "component CSS が混ざっていたら切り出せていない")
+      (testing "橋渡しが参照する primitive は全てこの切り出しに含まれる —
+                含まれていなければ bridge は静かに無色になる"
+        (doseq [v (vals tokens/hig->dads)]
+          (doseq [prop (re-seq #"--color-[a-z0-9-]+|--font-family-[a-z0-9-]+" v)]
+            (is (str/includes? r (str prop ":"))
+                (str prop " が :root 切り出しに無い"))))))))
+
+(deftest root-css-refuses-an-unrecognised-vendor-shape
+  (testing "vendor 形式が変わったら黙って空を返さず落ちる"
+    (is (thrown? #?(:clj clojure.lang.ExceptionInfo :cljs js/Error)
+                 (tokens/root-css "/* no root block here */")))))
