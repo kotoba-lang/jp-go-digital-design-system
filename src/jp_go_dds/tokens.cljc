@@ -41,7 +41,8 @@
   使う限り **dark は表現できない**。これは欠陥ではなく skin の選択であり、
   dark が要るアプリは DADS ではなく kotoba-ui skin を選ぶ、が正しい分岐。"
   (:require [clojure.string :as str]
-            [css.core :as css]))
+            [css.core :as css]
+            #?(:clj [clojure.java.io])))
 
 (def hig->dads
   "`--hig-*` 契約 → DADS primitive の対応表。
@@ -160,3 +161,33 @@
   アプリのテストからこれを assert できるようにしてある。"
   [token]
   (contains? hig->dads (->custom-property token)))
+
+;; ── primitive-only subset ────────────────────────────────────────────────────
+
+(defn root-css
+  "vendored `dds.css` の先頭 `:root { … }` ブロック（DADS primitive の定義）
+  だけを切り出す。
+
+  `bridge-css` は `--color-neutral-*` 等の **DADS primitive が既に定義されて
+  いる前提**で `--hig-*` を再定義する。したがって bridge を使う側は primitive
+  も出さねばならないが、`dads-*` の markup を一切使わないアプリ（既存の
+  kotoba-ui ページを DADS の色に寄せるだけの場合）にとって、component CSS を
+  含む 72KB 全部を各ページに焼くのは無駄が大きい。実測でこのブロックは 8.6KB。
+
+  **切り出しであって写しではない**のが要点。ここに token を書き写すと
+  `scripts/vendor.cljs` の再 vendor から取り残される（このファイル冒頭が
+  raw hex を禁じているのと同じ理由）。引数で CSS 文字列を受けるのは cljs/nbb
+  からも使えるようにするため。"
+  [dds-css]
+  (let [start (str/index-of dds-css ":root {")
+        end (when start (str/index-of dds-css "\n}" start))]
+    (when-not (and start end)
+      (throw (ex-info "dds.css に :root ブロックが見つからない — vendor 形式が変わった可能性"
+                      {:found-start (some? start)})))
+    (subs dds-css start (+ end 2))))
+
+#?(:clj
+   (defn root-css-resource
+     "`root-css` を vendored resource に対して適用した JVM 向け便宜版。"
+     []
+     (root-css (slurp (clojure.java.io/resource "jp_go_dds/dds.css")))))
