@@ -59,13 +59,23 @@
    ;; --- 表(console の主役) --------------------------------------------------
    ;; 横に長い表がページ全体を横スクロールさせないよう、表を包む器に逃がす。
    ;; 素の markup には器が無いことが多いので table 自体を block 化して逃がす。
-   ["table" {:display "block" :overflow-x "auto" :max-width "100%"
-             :border-collapse "collapse" :width "100%"
-             :margin ".75rem 0 1.5rem" :font-size ".875rem"}]
-   ["th,td" {:border "1px solid var(--color-neutral-solid-gray-300)"
-             :padding ".5rem .75rem" :text-align "left" :vertical-align "top"}]
-   ["th" {:background "var(--color-neutral-solid-gray-50)" :font-weight 700
-          :color "var(--color-neutral-solid-gray-900)"}]
+   ;; `:not(.dads-table__table)` は必須。README が勧める `dds.css` + `skin-css`
+   ;; の併用では、同じページに素の `<table>` と DADS の table component が同居する。
+   ;; 上流は `.dads-table__table` に `display` を **書いていない**(border-collapse
+   ;; だけ)ので、素の element selector で `display:block` を当てると **DADS の表が
+   ;; block 化して列が崩れる**(実測: murakumo.cloud の SPA を DADS table へ移した
+   ;; 時に発生)。素の表を助けるための規則が component を壊してはならない。
+   ;; セルも同様 —— skin の border は DADS 自身の罫と二重になる。
+   ["table:not(.dads-table__table)"
+    {:display "block" :overflow-x "auto" :max-width "100%"
+     :border-collapse "collapse" :width "100%"
+     :margin ".75rem 0 1.5rem" :font-size ".875rem"}]
+   [":not(.dads-table__table)>*>tr>th,:not(.dads-table__table)>*>tr>td"
+    {:border "1px solid var(--color-neutral-solid-gray-300)"
+     :padding ".5rem .75rem" :text-align "left" :vertical-align "top"}]
+   [":not(.dads-table__table)>*>tr>th"
+    {:background "var(--color-neutral-solid-gray-50)" :font-weight 700
+     :color "var(--color-neutral-solid-gray-900)"}]
 
    ;; --- 等幅 ---------------------------------------------------------------
    ["code,pre" {:font-family "var(--font-family-mono)"}]
