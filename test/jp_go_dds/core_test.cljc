@@ -166,6 +166,28 @@
     (is (str/includes? (html/->html (dds/select {:error "＊必須です"} [["a" "A"]]))
                        "dads-select__error-text"))))
 
+(deftest select-current-value
+  (testing ":value に一致する option だけが selected になる"
+    (let [s (html/->html (dds/select {:value "18"} [["12" "12mm"] ["18" "18mm"] ["24" "24mm"]]))]
+      (is (str/includes? s "<option value=\"18\" selected>18mm</option>"))
+      (is (str/includes? s "<option value=\"12\">12mm</option>"))
+      (is (str/includes? s "<option value=\"24\">24mm</option>"))
+      (is (= 1 (count (re-seq #"selected" s))))))
+  (testing "数値と文字列は同じ値として一致する（options は数値を持つことがある）"
+    (is (str/includes? (html/->html (dds/select {:value 18} [[18 "18mm"]]))
+                       "selected"))
+    (is (str/includes? (html/->html (dds/select {:value "18"} [[18 "18mm"]]))
+                       "selected")))
+  (testing ":value を渡さなければ selected は付かない（＝ブラウザは先頭を選ぶ）"
+    ;; これは仕様であって欠陥ではない。ただし既定値を持つフォームで :value を
+    ;; 忘れると**黙って先頭が選ばれる**ので、consumer 側が気付けるよう明示する。
+    (is (not (str/includes? (html/->html (dds/select {} [["12" "12mm"] ["18" "18mm"]]))
+                            "selected"))))
+  (testing "placeholder がある場合、:value 指定はそちらを上書きしない"
+    (let [s (html/->html (dds/select {:value "1"} [["" "選択してください"] ["1" "足立区"]]))]
+      (is (str/includes? s "<option value=\"\" disabled selected>選択してください</option>"))
+      (is (str/includes? s "<option value=\"1\" selected>足立区</option>")))))
+
 (deftest form-field-requirement-vs-status
   (testing "必須マーカーは __requirement(data-required=true)。__status ではない"
     (let [f (html/->html (dds/form-field {:label "氏名" :requirement "※必須" :required? true} [:i]))]
