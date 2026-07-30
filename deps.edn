@@ -9,7 +9,10 @@
  ;; モノレポ内では nbb に --classpath を明示的に渡すので影響しない。
         io.github.kotoba-lang/html
         {:git/url "https://github.com/kotoba-lang/html"
-         :git/sha "00a4c2ad43dde3df9d54b658961143c53945a379"}
+         ;; aa57f27 stops the renderer indenting inside <pre>/<textarea>.
+         ;; Without it a DADS page's [:pre [:code …]] code sample ships with a
+         ;; leading blank line and two spaces of indent baked into the block.
+         :git/sha "aa57f2730c87b7c2752151ed1a5f2e402c2ac71e"}
         io.github.kotoba-lang/css
         {:git/url "https://github.com/kotoba-lang/css"
          :git/sha "6eda5ee28ec177b9e09fdbee92c55a050b18cf7d"}}
