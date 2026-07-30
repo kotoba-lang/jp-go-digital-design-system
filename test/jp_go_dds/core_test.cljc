@@ -143,8 +143,10 @@
         (is (some? decls) (str sel " が無い"))
         (is (re-find (re-pattern token) (str (:color decls)))
             (str sel " が semantic " token " token を使っていない")))))
-  (testing "横に長い表がページ全体を横スクロールさせない"
-    (let [t (some (fn [[s d]] (when (= "table" s) d)) skin/skin-rules)]
+  (testing "横に長い表がページ全体を横スクロールさせない(素の表のみ —
+            DADS の table component は自前で overflow を持つので除外する)"
+    (let [t (some (fn [[s d]] (when (= "table:not(.dads-table__table)" s) d))
+                  skin/skin-rules)]
       (is (= "auto" (:overflow-x t)))
       (is (= "100%" (:max-width t))))))
 
