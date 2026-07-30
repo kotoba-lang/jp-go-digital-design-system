@@ -134,11 +134,18 @@
   (span.dads-select > span.dads-select__control > select + chevron svg)。
 
   opts: :id :name :size(既定 \"md\") :required :disabled :aria-describedby
+        :value(現在値。一致する option を selected にする)
         :error(あれば dads-select__error-text を出す)
         :attrs(select への追加属性)
   options: [[value label] ...]。value が nil/\"\" の項目は placeholder として
-  disabled + selected にする(上流の「選択してください」と同じ扱い)。"
-  [{:keys [id name size required disabled aria-describedby error attrs]
+  disabled + selected にする(上流の「選択してください」と同じ扱い)。
+
+  **`:value` を渡さないと『先頭の option が選ばれている』HTML になる。** SSR で
+  既定値を持つフォーム(設定画面・編集フォーム)ではこれが黙った誤りになる ——
+  consumer 側は「18mm を既定にした」つもりでも、実際に選ばれるのは options の
+  先頭(12mm)で、しかも見た目は正常なので気付かない(実測 2026-07-30、
+  cloud-itonami/inkan の印影サイズが 18.0mm のつもりで 12.0mm で描画されていた)。"
+  [{:keys [id name size required disabled aria-describedby value error attrs]
     :or {size "md"}}
    options]
   [:span {:class "dads-select"}
@@ -150,8 +157,14 @@
                      disabled (assoc :disabled true)
                      aria-describedby (assoc :aria-describedby aria-describedby))]
           (map (fn [[v label]]
-                 (if (or (nil? v) (= "" v))
+                 (cond
+                   (or (nil? v) (= "" v))
                    [:option {:value "" :disabled true :selected true} label]
+                   ;; 値の比較は str 経由 —— options は数値や keyword を持つことが
+                   ;; あり、`=` だと 18 と "18" が一致せず selected が付かない。
+                   (and (some? value) (= (str v) (str value)))
+                   [:option {:value v :selected true} label]
+                   :else
                    [:option {:value v} label]))
                options))
     [:svg {:class "dads-select__chevron" :width 16 :height 16
