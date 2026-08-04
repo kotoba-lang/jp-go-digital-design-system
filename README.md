@@ -7,8 +7,10 @@ ADR-2607141915（com-junkawasaki/root）。
 - markup / class 名（`dads-*`）は上流の HTML 例に忠実。CSS は
   `resources/jp_go_dds/dds.css` に vendor（先頭コメントに上流 commit と MIT 表記。
   `nbb scripts/vendor.cljs <上流 clone>` で再生成 — 手編集禁止）。
-- **light mode 固定**（上流に dark palette は無い。`page` が
-  `color-scheme: light` を明示するので OS が dark でも light で描画される）。
+- **既定は light 固定**（上流に dark palette は無い）。`page` に `:dark? true`
+  を渡すと `jp-go-dds.dark` の反転層が入り、`prefers-color-scheme` と
+  `[data-theme]` の両方に対応する。**上流の dark ではなく、こちらの拡張**
+  （下記「dark」節）。
 - 上流に無い layout 補助（container / section / grid / stack / card / hero）は
   `dds-ext-*` prefix + `core/ext-css` で明確に区別（上流 class と混ぜない）。
 - 既定で**外部リクエストゼロ**（Noto Sans JP の Google Fonts 読み込みは
@@ -107,6 +109,75 @@ DADS ではなく kotoba-ui skin を選ぶ、が正しい分岐。
 第一消費者: `gftdcojp/ai-gftd-itad`（itad.gftd.ai の LP — kotoba-ui からの
 opt-out はオーナー指示 + 行政手続き系サービスとしての信頼感のため。
 ADR-2607141915 に理由を明記）。
+
+## dark (`jp-go-dds.dark`) —— 上流には無い。これは拡張
+
+```clojure
+(page/->page {:title "..." :css dds-css :dark? true} …)
+```
+
+`:dark? true` だけで CSS・`color-scheme`・`theme-color` が揃う。knob を 1 つに
+してあるのは、CSS と meta を別フラグにすると「dark の地に light のブラウザ
+chrome」というページが必ず生まれるため。
+
+### 色を作らず、ramp を逆から辿る
+
+デジタル庁デザインシステムに dark palette は無い。しかし**無いのは palette で
+あって色ではない** —— 上流は 10 色相 + key を 13 段、neutral grey を 12 段
+持っており、どの ramp も単調に暗くなる。dark を「同じ ramp を逆から辿ること」と
+定義すれば、新しい色を一つも発明せずに dark が出る。規則は 1 本:
+
+    ramp の i 番目 → 同じ ramp の (n-1-i) 番目
+
+index で鏡映するので、grey の `420` `536` のような半端な段にも例外表が要らない
+（数値で `N → 1000-N` を計算すると `50 → 950` が存在しない）。
+
+**反転は primitive 層で行う。** `--color-key-*` も `--color-semantic-*` も
+`tokens/hig->dads` の `--hig-*` 契約も primitive を指しているので、primitive を
+反転すれば **semantic の dark 版も `--hig-*` の dark bridge も component CSS の
+書き換えも一切要らない**。`dads-*` の markup はそのまま dark になる。
+
+唯一の例外が `white ↔ black` で、鏡映すると地が純黒になり面がそれ以上下に
+行けなくなるため、地は grey の最暗段に落とす。上流から導けないこちらの判断。
+
+### 実測 contrast（`clojure -M:test` が毎回検算する）
+
+地 `#1a1a1a` に対して:
+
+| token | dark 値 | contrast |
+|---|---|---|
+| `--color-neutral-solid-gray-800`（本文） | `#e6e6e6` | 13.94:1 |
+| `--color-neutral-solid-gray-700` | `#cccccc` | 10.84:1 |
+| `--color-neutral-solid-gray-600` | `#b3b3b3` | 8.30:1 |
+| `--color-neutral-solid-gray-536` | `#999999` | 6.11:1 |
+| `--color-key-900`（primary action） | `#9db7f9` | 8.76:1 |
+| `--color-semantic-error-1` | `#ff7171` | 6.51:1 |
+| `--color-semantic-success-1` | `#259d63` | 5.04:1 |
+| `--color-semantic-warning-orange-1` | `#fb5b01` | 5.47:1 |
+| `--color-semantic-warning-yellow-1` | `#ebb700` | 9.37:1 |
+| solid-fill button（地 key / 字 white） | — | 8.76:1 |
+| **反転しない場合の key blue `#0017c1`** | — | **1.57:1** |
+
+最後の行が dark を設計する理由そのもの。デジタル庁の key blue は暗地の上で
+2:1 も出ないので、反転しないと primary action が読めない。
+
+この表は説明ではなく**検査**で、`dark_test` が WCAG の相対輝度から毎回計算して
+閾値に当てる。上流の再 vendor で palette が動いたらここが落ちる —— 色の劣化は
+落ちるテストにしないと誰も気付かない。
+
+### 実装上の落とし穴、2 つとも塞いである
+
+- **循環参照**: 鏡映は対合なので `red-800: var(--red-400)` と
+  `red-400: var(--red-800)` を同じ要素に書くと両方 invalid になり色が全部消える。
+  light の実値を vendored CSS から**抽出**して `--dds-light-*` に退避し、dark は
+  それだけを参照する（抽出であって書き写しではないので、再 vendor に追従する。
+  `dark.cljc` に色の literal は 1 つも無く、テストがそれを固定している）。
+- **`@media` は specificity を上げない**: `@media (prefers-color-scheme: dark)`
+  の中の `:root` は外の素の `:root` と同じ強さなので、後から出る
+  `tokens/a11y-css` の `:root { color-scheme: light }` に順序だけで負け、
+  **auto-dark が黙って無効化される**。dark 側を `:root:root`、`[data-theme]` 側を
+  `:root:root[data-theme=…]` にして、明示指定 > auto > 素の `:root` を
+  順序に依存せず固定してある。
 
 ## テスト
 
