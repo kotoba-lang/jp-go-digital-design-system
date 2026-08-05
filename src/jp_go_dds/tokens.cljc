@@ -71,10 +71,26 @@
    ;; DADS の key color（デジタル庁ブルー）。HIG の :tint に相当する。
    "--hig-color-tint" "var(--color-key-900)"
    ;; --- semantic palette ---------------------------------------------------
+   ;; DADS ships primitive families for blue / cyan / green / light / lime /
+   ;; magenta / orange / purple / red / yellow. The HIG palette is the
+   ;; workspace's vocabulary for CATEGORICAL color — a track in a DAW, a clip
+   ;; in an NLE, a series in a chart — so a half-mapped palette is worse than
+   ;; none: the mapped members follow DADS and the rest fall back to Apple's
+   ;; hues, and one legend ends up in two design languages. All ten of the
+   ;; families DADS has are mapped; the six it does not have (teal / mint /
+   ;; indigo / brown / gray2-6) are deliberately absent so `shitsuke.hig`'s
+   ;; defaults still answer for them (see this map's docstring).
    "--hig-palette-blue" "var(--color-key-900)"
    "--hig-palette-green" "var(--color-primitive-green-700)"
    "--hig-palette-red" "var(--color-primitive-red-800)"
    "--hig-palette-orange" "var(--color-primitive-orange-800)"
+   "--hig-palette-cyan" "var(--color-primitive-cyan-700)"
+   "--hig-palette-purple" "var(--color-primitive-purple-700)"
+   ;; HIG's pink has no DADS counterpart by name; magenta is the family that
+   ;; occupies that arc of the wheel.
+   "--hig-palette-pink" "var(--color-primitive-magenta-700)"
+   "--hig-palette-yellow" "var(--color-primitive-yellow-700)"
+   "--hig-palette-gray" "var(--color-neutral-solid-gray-500)"
    ;; --- 罫 / 塗り（サイト実測で使用頻度の高い順）---------------------------
    ;; `--hig-hairline` は itonami.cloud で 25 箇所参照されていて、色トークンの
    ;; 中でも影響が大きい。separator と同じ階調に寄せる。
@@ -96,7 +112,72 @@
    ;; DADS は mono family を発行しない。HIG 側も具体名を持つのはここだけなので
    ;; system stack を書く（唯一の raw 値。font family は palette と違い vendor
    ;; 更新で変わらない種類の値なので、ここに置いても取り残されない）。
-   "--hig-font-mono" "ui-monospace,SFMono-Regular,Menlo,monospace"})
+   ;; DADS does emit a mono family (--font-family-mono); reference it rather
+   ;; than restating a stack, so a re-vendor carries here too.
+   "--hig-font-mono" "var(--font-family-mono)"
+
+   ;; --- 4pt グリッド -------------------------------------------------------
+   ;; DADS publishes no spacing custom properties — its components write
+   ;; `calc(N / 16 * 1rem)` inline. So these cannot reference a primitive; they
+   ;; state the HIG 4pt grid in DADS's own idiom, which keeps them tied to the
+   ;; root font size the way every DADS component already is.
+   ;;
+   ;; Without them a view written to the token contract loses its layout, not
+   ;; just its color: `padding: var(--hig-spacing-4)` collapses to nothing.
+   ;; That is a harsher failure than a wrong hue and it is why these are here
+   ;; rather than left to fall back — there is nothing to fall back to once an
+   ;; app drops `shitsuke.hig` to take DADS as its base.
+   "--hig-spacing-1" "calc(4 / 16 * 1rem)"
+   "--hig-spacing-2" "calc(8 / 16 * 1rem)"
+   "--hig-spacing-3" "calc(12 / 16 * 1rem)"
+   "--hig-spacing-4" "calc(16 / 16 * 1rem)"
+   "--hig-spacing-5" "calc(20 / 16 * 1rem)"
+   "--hig-spacing-6" "calc(24 / 16 * 1rem)"
+   "--hig-spacing-7" "calc(32 / 16 * 1rem)"
+   "--hig-spacing-8" "calc(40 / 16 * 1rem)"
+   "--hig-spacing-9" "calc(48 / 16 * 1rem)"
+   "--hig-spacing-10" "calc(64 / 16 * 1rem)"
+   "--hig-spacing-content-margin" "calc(16 / 16 * 1rem)"
+
+   ;; --- 角丸 ---------------------------------------------------------------
+   ;; Same reasoning as spacing. DADS's own controls sit at 8px
+   ;; (`calc(8 / 16 * 1rem)`), which lands between HIG's :xs and :sm — the
+   ;; scale is kept, not re-tuned, so a component that asks for :md keeps
+   ;; reading as a card rather than as a button.
+   "--hig-radius-xs" "calc(6 / 16 * 1rem)"
+   "--hig-radius-sm" "calc(10 / 16 * 1rem)"
+   "--hig-radius-md" "calc(14 / 16 * 1rem)"
+   "--hig-radius-lg" "calc(20 / 16 * 1rem)"
+   "--hig-radius-xl" "calc(28 / 16 * 1rem)"
+   "--hig-radius-large" "calc(20 / 16 * 1rem)"
+   "--hig-radius-capsule" "999px"
+
+   ;; --- 文字寸法 -----------------------------------------------------------
+   ;; Only `-font-size` and `-line-height`: those are what app CSS references
+   ;; when it needs a size without taking the whole `.hig-*` utility class.
+   ;; The weights are a type decision DADS makes for itself.
+   "--hig-text-large-title-font-size" "calc(34 / 16 * 1rem)"
+   "--hig-text-large-title-line-height" "calc(41 / 16 * 1rem)"
+   "--hig-text-title1-font-size" "calc(28 / 16 * 1rem)"
+   "--hig-text-title1-line-height" "calc(34 / 16 * 1rem)"
+   "--hig-text-title2-font-size" "calc(22 / 16 * 1rem)"
+   "--hig-text-title2-line-height" "calc(28 / 16 * 1rem)"
+   "--hig-text-title3-font-size" "calc(20 / 16 * 1rem)"
+   "--hig-text-title3-line-height" "calc(25 / 16 * 1rem)"
+   "--hig-text-headline-font-size" "calc(17 / 16 * 1rem)"
+   "--hig-text-headline-line-height" "calc(22 / 16 * 1rem)"
+   "--hig-text-body-font-size" "calc(17 / 16 * 1rem)"
+   "--hig-text-body-line-height" "calc(22 / 16 * 1rem)"
+   "--hig-text-callout-font-size" "calc(16 / 16 * 1rem)"
+   "--hig-text-callout-line-height" "calc(21 / 16 * 1rem)"
+   "--hig-text-subheadline-font-size" "calc(15 / 16 * 1rem)"
+   "--hig-text-subheadline-line-height" "calc(20 / 16 * 1rem)"
+   "--hig-text-footnote-font-size" "calc(13 / 16 * 1rem)"
+   "--hig-text-footnote-line-height" "calc(18 / 16 * 1rem)"
+   "--hig-text-caption1-font-size" "calc(12 / 16 * 1rem)"
+   "--hig-text-caption1-line-height" "calc(16 / 16 * 1rem)"
+   "--hig-text-caption2-font-size" "calc(11 / 16 * 1rem)"
+   "--hig-text-caption2-line-height" "calc(13 / 16 * 1rem)"})
 
 (def bridge-rules
   "`hig->dads` を `[selector decls]` の EDN 1 本にしたもの。

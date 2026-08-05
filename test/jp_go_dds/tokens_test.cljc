@@ -61,10 +61,47 @@
       (is (not (re-find #"#[0-9a-fA-F]{3,8}\b" v))
           (str k " に raw hex が焼かれている: " v))))
 
-  (testing "唯一の raw 値は font-mono の system stack"
-    (let [raw (remove #(str/starts-with? (val %) "var(") tokens/hig->dads)]
-      (is (= #{"--hig-font-mono"} (set (map key raw)))
-          (str "想定外の raw 値: " (pr-str (map key raw)))))))
+  (testing "raw 値は寸法だけ — 色と family は必ず var() 参照"
+    ;; 元は「唯一の raw は font-mono」だった。DADS が --font-family-mono を
+    ;; 発行しているのでそれは var() になり、代わりに寸法(spacing / radius /
+    ;; text)が raw で入った。**寸法は vendor 済み palette に無い**ので参照の
+    ;; しようがなく、ここが正しい置き場になる。守りたい不変条件は「raw が
+    ;; 1件だけ」ではなく「色は焼かない」なので、そう書き直す。
+    (let [raw (remove #(str/starts-with? (val %) "var(") tokens/hig->dads)
+          size? #(re-matches #"(calc\(\d+ / 16 \* 1rem\)|\d+px)" %)]
+      (doseq [[k v] raw]
+        (is (not (str/includes? k "color"))
+            (str "色が raw で焼かれている: " k " = " v))
+        (is (size? v)
+            (str k " の raw 値が寸法の形をしていない(calc(N / 16 * 1rem) か Npx): " v)))
+      (is (seq raw) "寸法の橋渡しが1つも無い"))))
+
+(deftest bridge-covers-the-contract-an-app-actually-needs
+  ;; An app that takes DADS as its base drops `shitsuke.hig` entirely, so an
+  ;; unmapped token has nothing to fall back to — `padding: var(--hig-spacing-4)`
+  ;; collapses to no padding, not to a default. Colour was already covered; the
+  ;; three apps that moved over (kami-genko, kami-app-daw, kami-app-nle) needed
+  ;; the rest of the grid, and found it missing.
+  (testing "4pt グリッドと角丸と文字寸法が揃っている"
+    (doseq [k (concat (map #(str "--hig-spacing-" %) (range 1 11))
+                      ["--hig-spacing-content-margin"]
+                      (map #(str "--hig-radius-" %) ["xs" "sm" "md" "lg" "xl" "capsule"])
+                      (map #(str "--hig-text-" % "-font-size")
+                           ["large-title" "title1" "title2" "title3" "headline"
+                            "body" "callout" "subheadline" "footnote"
+                            "caption1" "caption2"]))]
+      (is (contains? tokens/hig->dads k) (str "橋渡しに無い: " k))))
+  (testing "categorical palette は DADS が持つ族を全て埋める"
+    ;; 半分だけ埋まった palette は埋まっていないより悪い —— 1つの凡例が
+    ;; 2つのデザイン言語に割れる。
+    (doseq [c ["blue" "cyan" "green" "magenta" "orange" "purple" "red" "yellow"]]
+      (let [k (str "--hig-palette-" (if (= c "magenta") "pink" c))]
+        (is (contains? tokens/hig->dads k) (str "橋渡しに無い: " k)))))
+  (testing "4pt グリッドは 4 の倍数であり続ける"
+    (doseq [n (range 1 11)]
+      (let [v (get tokens/hig->dads (str "--hig-spacing-" n))
+            px (Integer/parseInt (second (re-find #"calc\((\d+) / 16" v)))]
+        (is (zero? (mod px 4)) (str "--hig-spacing-" n " = " px "px は 4pt グリッド外"))))))
 
 ;; ───────────────── 左辺が --hig-* 契約であること ─────────────────
 
