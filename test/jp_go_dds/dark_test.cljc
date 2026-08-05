@@ -199,3 +199,36 @@
           :when inner]
     (is (some? (dark-of inner))
         (str "bridge が指す " inner " が dark で解決できない"))))
+
+(deftest forced-dark-needs-no-attribute-and-no-os-setting
+  ;; The case `dark-css` cannot serve: a page whose document builder stamps
+  ;; something other than `data-theme` on `<html>`. Under `dark-css` such a
+  ;; page silently renders DADS LIGHT primitives — white surfaces beneath a
+  ;; dark layout — because neither selector ever matches.
+  (let [css (dark/forced-dark-css dds)]
+    (is (str/includes? css ":root:root")
+        "forced dark must outrank a later plain :root, same as dark-css")
+    (is (not (str/includes? css "prefers-color-scheme"))
+        "forced dark must not be gated on the OS setting")
+    (is (not (str/includes? css "data-theme"))
+        "forced dark must not be gated on an attribute")
+    ;; and it must actually carry the dark values, not merely the snapshot
+    (doseq [[k v] (dark/dark-declarations dds)]
+      (is (str/includes? css (str k ": " v))
+          (str "dark value missing for " k)))))
+
+(deftest forced-dark-carries-the-same-values-as-the-gated-one
+  ;; Same declarations, different gate. If these drifted, a dark-only product
+  ;; and a dark-capable one would show different colours for the same token —
+  ;; and nobody would notice, because each looks correct on its own.
+  (let [forced (dark/forced-dark-css dds)
+        gated (dark/dark-css dds)]
+    (doseq [[k v] (dark/dark-declarations dds)]
+      (is (and (str/includes? forced (str k ": " v))
+               (str/includes? gated (str k ": " v)))
+          (str k " differs between forced and gated dark")))
+    ;; and the light snapshot both depend on is the same layer
+    (is (str/includes? forced (str/join "" ["--dds-light-neutral-white: "
+                                            (get (into {} (dark/light-literals dds))
+                                                 "--color-neutral-white"
+                                                 "#ffffff")])))))
