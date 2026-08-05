@@ -234,6 +234,30 @@
 
 ;; ── CSS ─────────────────────────────────────────────────────────────────────
 
+(defn forced-dark-css
+  "Dark unconditionally, for a product that IS dark rather than one that
+  offers dark.
+
+  `dark-css` gives the user the choice: `@media (prefers-color-scheme: dark)`
+  for auto and `[data-theme]` for an explicit override. Both need something to
+  put the attribute on, or an OS setting to read. A page whose document
+  builder does not stamp `<html>` — `kotoba-ui.shell/page` stamps
+  `data-appearance`, not `data-theme` — has neither, so it would render DADS
+  light primitives underneath a dark layout: white surfaces, dark text
+  colours, and no error anywhere.
+
+  This is the third case: the product has already decided. A trading terminal
+  that is dark in every screenshot it has ever appeared in is not offering a
+  preference, and making it follow the OS would be a product change disguised
+  as a design-system adoption.
+
+  Still `:root:root`, for the reason `dark-css` documents: `@media` adds no
+  specificity, and a later plain `:root` would otherwise win on order alone."
+  [dds-css]
+  (css/css
+   {:rules [[":root" (snapshot-declarations dds-css)]
+            [":root:root" (dark-declarations dds-css)]]}))
+
 (defn dark-css
   "この層の全部。出す位置は `jp-go-dds.page` が決める（上流 → ext → dark → app）。
 
