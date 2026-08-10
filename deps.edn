@@ -17,8 +17,17 @@
         {:git/url "https://github.com/kotoba-lang/css"
          :git/sha "6eda5ee28ec177b9e09fdbee92c55a050b18cf7d"}}
  :aliases
+ ;; kotoba-lang/compiler is TEST-ONLY, for the parity gate that compiles
+ ;; kotoba/bridge_document.kotoba and requires byte-identical CSS emission to
+ ;; jp-go-dds.tokens/bridge-css (ADR-2607270100 §10, migration plan W6). The
+ ;; library itself has no runtime dependency on it — consumers keep requiring
+ ;; jp-go-dds.tokens, which is unchanged.
  {:test {:extra-paths ["test"]
          :extra-deps  {io.github.cognitect-labs/test-runner
-                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}}
+                       {:git/tag "v0.5.1" :git/sha "dfb30dd"}
+                       io.github.kotoba-lang/compiler
+                       {:git/url "https://github.com/kotoba-lang/compiler.git"
+                        ;; sealed native fuel + extracted sema/HIR boundary
+                        :git/sha "875e3882dd76508d1a9a51f7f5ac0f1e563e490d"}}
          :main-opts   ["-m" "cognitect.test-runner"]
          :exec-fn cognitect.test-runner.api/test}}}
