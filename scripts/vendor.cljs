@@ -60,4 +60,20 @@
       (println "per-component:" (count all) "件 ->" dir))
 
     (fs/copyFileSync (path/join upstream "LICENSE") "LICENSE-upstream")
+
+    ;; --- palette.edn を必ず一緒に作り直す ----------------------------------
+    ;; `resources/jp_go_dds/palette.edn` は dds.css から導出した宣言データで、
+    ;; `kotoba/dark_declarations.kotoba` の入力。再 vendor して EDN を作り直し
+    ;; 忘れると、dark は**前の上流の palette を描き続ける**。テストがそれを
+    ;; 検出するようにしてあるが、検出より再生成のほうが安い。
+    ;;
+    ;; 別プロセスで呼ぶのは、走査の実装を 1 箇所に保つため —— palette.cljs は
+    ;; `jp-go-dds.dark` の公開関数を呼ぶだけで、自前の parser を持たない。
+    ;; そのためライブラリを classpath に載せる必要があり、この script 自身は
+    ;; classpath なしで起動されるので、ここで明示して起動し直す。
+    (println (-> (cp/execSync
+                  (str "nbb --classpath \"src:../css/src:../html/src\" "
+                       "scripts/palette.cljs"))
+                 .toString .trim))
+
     (println "vendored at upstream" sha "-> dds.css" (count css) "bytes")))
