@@ -197,6 +197,28 @@ gate は vendored sheet の **12 ramp すべてで dark / light / snapshot の 3
 `rgba(0, 0, 0, ` で始まること（再 vendor で空白が変わると暗い地に黒い scrim が
 残るため）。`mirror-index` を壊すと落ちることを確認済み。
 
+### component の判断も `.kotoba`（`kotoba/button.kotoba`）
+
+component が決めているのは markup（1 要素 + テキスト 1 つ）ではなく**属性**:
+
+1. **既定値** — `:type` は `:solid-fill`、`:size` は `"md"`。`(button "OK")` が
+   素の button ではなく本物の DADS button になるのはこれ。
+2. **要素の選択** — `:href` があれば `<a>`、無ければ `type="button"` /
+   `"submit"` を持ち `disabled` を取りうる `<button>`。`<a>` に `disabled` は
+   無いので、2 分岐は上位集合の共有ではなく本当に別物。
+3. **優先順位** — `:attrs` は任意属性（`data-*` / `aria-*` / `hx-*`）を通すが、
+   `class` / `data-type` / `data-size` は**後から**当たり上書きできない。
+   これが component の同一性で、上書きできてしまうと consumer は selectable
+   hook を得るために DADS button の CSS を app 側へ複製することになる。
+
+gate は 16 通りの opts 行列（両要素・全オプション・passthrough 衝突を含む）で
+`jp-go-dds.core/button` と属性文字列・タグ名を突き合わせる。実測: `owned?` の
+`class` 判定を潰すと 0 → **2 failures**、既定 size を `"lg"` にすると
+0 → **17 failures**。
+
+属性は**固定順**で出す（sort ではなく）。順序も contract の一部で、
+これがあるから比較できる。
+
 ### 残っている `.cljc`
 
 `resolve-dark`（コントラスト検査用の別名解決）と `all-declarations` は
