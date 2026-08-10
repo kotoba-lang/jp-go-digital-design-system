@@ -238,14 +238,45 @@ button と同じ形で 7 つの判断を持つ:
 `.cljc` の docstring が「実測でこれをやっていた」と記録している。
 **一度実際に間違えた判断は、テストが届く場所に置く価値がある。**
 
-`select` と `notification-banner` はここに無い —— 判断が option リストと
-icon 表の上にあり、平坦な属性マップとは形が違うので別スライス。
+`select` と `notification-banner` は下の別モジュール —— 判断が option リストと
+icon 表の上にあり、平坦な属性マップとは形が違うため。
 
 gate は各 component の hiccup を**判断を持つノードまで walk** して属性を
 突き合わせる（`(second h)` は属性マップであって子ではないので、入れ子
 component への index 演算は間違えやすい。tag 名で引く）。実測: heading の
 表の 1 段を変えると 0 → **1 failure**、`__requirement` を `__status` に
 すり替えると 0 → **2 failures**。
+
+### `select` の option 状態と banner の icon 表（`kotoba/select_banner.kotoba`）
+
+判断が**リストと表**の上にあるので別モジュール。
+
+**どの option に `selected` が付くか**が、この repo で唯一**実害を出した判断**:
+
+1. 値が空の option は placeholder —— `disabled` かつ `selected`（送信で生き残っては困る prompt）
+2. 現在値に一致する option が `selected` —— **テキストとして比較**する。options は数値も keyword も持つので `18` は `"18"` に一致しなければならない
+3. **現在値が無ければ何も selected にならない** —— ブラウザが先頭を表示する
+
+3 番目が刺さります。ページは正しく見え、フォームは先頭を送信し、誰も気付かない ——
+実測 2026-07-30、`cloud-itonami/inkan` が 18.0mm のつもりで **12.0mm** の印影を描画。
+既定値が要るなら呼び出し側が渡すしかなく、このモジュールにそれは作れませんが、
+**規則をテストが届く形にする**ことはできます。
+
+なお**数値→テキストの変換は host 境界**で起きます（Kotoba に任意値の `str` は無い）。
+gate は `.cljc` 側から `18` と `"18"` の両方を流して境界が保たれることを見ます。
+
+### `select` と `button` は passthrough の向きが逆（実測 2026-08-10）
+
+`button` は `:attrs` を**先に** merge して自分の class/data-* を後に置くので
+ライブラリが勝ちます。`select` は逆で、**`:attrs` が `class` / `data-size` を
+上書きできます** —— `(select {:attrs {:class "MINE"}} …)` は `class="MINE"` を出し、
+DADS のスタイルが丸ごと外れます。button の docstring が「component の同一性を
+壊させないため」と書いている、その規則の反対です。
+
+移植は**出荷されている挙動をそのまま再現**しています。あるべき挙動を encode した
+parity gate は、実際の挙動について何も証明しないからです。食い違いは gate で
+明示的に assert してあるので失われません。**どちらが正しいかを決めるのは
+migration ではなく shipped API の変更**なので、ここではしていません。
 
 ### 残っている `.cljc`
 
