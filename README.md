@@ -219,6 +219,34 @@ gate は 16 通りの opts 行列（両要素・全オプション・passthrough
 属性は**固定順**で出す（sort ではなく）。順序も contract の一部で、
 これがあるから比較できる。
 
+### 残りの component も `.kotoba`（`kotoba/components.kotoba`）
+
+button と同じ形で 7 つの判断を持つ:
+
+| component | 判断 |
+|---|---|
+| heading | level → tag、level → 上流の `data-size`（表であって式ではない。1..6 の外は `"20"`） |
+| chip-label | 既定 2 つ |
+| input-text | 既定 size、`type` は `"text"`、**`:size` は `data-size` に消費され属性としては出さない**（`size="md"` は HTML では文字幅ヒントで DADS の意図と違う） |
+| textarea | 既定 rows |
+| checkbox / radio | 既定 size、どの属性が出るか |
+| form-field | **`__requirement` と `__status` の区別** |
+
+最後の 1 つは既定値ではない。必須/任意マーカーは `data-required` を持つ
+`__requirement` で、`__status` は「入力済み」等を表すグレーの塗りバッジ。
+必須マーカーに `__status` を使うのは様式の選択ではなく**誤り**で、
+`.cljc` の docstring が「実測でこれをやっていた」と記録している。
+**一度実際に間違えた判断は、テストが届く場所に置く価値がある。**
+
+`select` と `notification-banner` はここに無い —— 判断が option リストと
+icon 表の上にあり、平坦な属性マップとは形が違うので別スライス。
+
+gate は各 component の hiccup を**判断を持つノードまで walk** して属性を
+突き合わせる（`(second h)` は属性マップであって子ではないので、入れ子
+component への index 演算は間違えやすい。tag 名で引く）。実測: heading の
+表の 1 段を変えると 0 → **1 failure**、`__requirement` を `__status` に
+すり替えると 0 → **2 failures**。
+
 ### 残っている `.cljc`
 
 `resolve-dark`（コントラスト検査用の別名解決）と `all-declarations` は
