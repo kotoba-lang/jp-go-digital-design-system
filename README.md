@@ -157,12 +157,53 @@ gate は `test/jp_go_dds/kotoba_document_parity_test.clj`（JVM のみ。
 
 `mirror-index` を `(- n i)` に壊すと 0 failures が 15 failures になることを確認済み。
 
-**走査側（`light-literals` / `ramps` / `opacity-inverted`）は `.cljc` に残す。**
-正規表現でテキストから構造を復元する設計は、移行ではなく設計変更が先
-（走査をやめて宣言データにする）。サイズは理由ではない —— `dds.css` は
-72,114 バイトで `string-value-byte-limit` 65,536 を超えるが、`:root` ブロック
-だけなら 8,617 バイトで**収まる**。同じ理由で `tokens/root-css` を
-`.kotoba` にする案は、入力を sheet 全体で取る限り成立しない。
+### palette は宣言データ（`resources/jp_go_dds/palette.edn`）
+
+正規表現でテキストから構造を復元する処理は Kotoba へ移せない。**移行ではなく
+設計変更を先にやる**のが規則なので、走査を **vendor 時に 1 回だけ**走らせて
+結果を EDN にした:
+
+```bash
+nbb --classpath "src:../css/src:../html/src" scripts/palette.cljs
+```
+
+`scripts/vendor.cljs` はこれを最後に必ず呼ぶ（再 vendor して EDN を作り忘れると
+dark が**前の上流の palette を描き続ける**）。生成物なので手編集禁止。
+中身は `:literals`(156) / `:ramps`(12) / `:all`(177) と source の sha256。
+
+**導出は 1 つだけ** —— `palette.cljs` は自前の parser を持たず
+`jp-go-dds.dark` の公開関数を呼ぶだけ。committed な EDN が現在の走査と
+一致することは gate が検査する。
+
+### dark / light / snapshot の宣言も `.kotoba`（`kotoba/dark_declarations.kotoba`）
+
+宣言データの上でなら、dark の**判断**の側は純関数になる:
+
+| set | 値 |
+|---|---|
+| snapshot | `--dds-light-X: <light の実値>` |
+| dark | `--color-X: var(--dds-light-<X の鏡映>)` |
+| light | `--color-X: var(--dds-light-X)` |
+
+退避が要るのは反転が対合だから —— `--color-red-800: var(--color-red-400)` と
+その相方を同じ要素に書くと **CSS custom property の循環**になり両方無効になる。
+だから両側とも `--dds-light-*` の複製だけを参照する。
+
+一様な規則の**唯一の例外は white / black**（ramp の段ではなく、ramp を測る端）。
+scrim（`rgba(0, 0, 0, α)`）は base だけ反転し、α は上流の宣言から取る。
+
+gate は vendored sheet の **12 ramp すべてで dark / light / snapshot の 3 セット
+とも `jp-go-dds.dark` と一致**すること、白黒の例外、scrim 12 件が
+`rgba(0, 0, 0, ` で始まること（再 vendor で空白が変わると暗い地に黒い scrim が
+残るため）。`mirror-index` を壊すと落ちることを確認済み。
+
+### 残っている `.cljc`
+
+`resolve-dark`（コントラスト検査用の別名解決）と `all-declarations` は
+走査結果の上での**グラフ探索**なので、次の候補は別の形になる。
+`tokens/root-css` を `.kotoba` にする案は成立しない —— 入力の `dds.css` が
+72,114 バイトで `string-value-byte-limit` 65,536 を超える（`:root` ブロック
+だけなら 8,617 バイトで収まる）。
 
 ## 使い方
 
