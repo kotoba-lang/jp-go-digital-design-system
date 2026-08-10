@@ -121,10 +121,48 @@ gate は `test/jp_go_dds/kotoba_document_parity_test.clj`（JVM のみ。
    は 32、`document-node-limit` は 256（kotoba-kir `value.cljc`）。71 件は
    どちらも超えるので、最大 32 件の chunk に切って `join-decls` で繋ぐ。
    chunk 境界が出力に現れないことは gate が別に assert する。
-2. **`if` の片枝が `false` リテラル・もう片枝が `string=?` 呼び出しだと
-   型が合わない**（compiler 875e388 で実測）。リテラル同士なら通るので
-   入れ子の `if` で書いてある。compiler ADR 0219 が「backend ではなく
-   interpreter の gap」と呼んでいるもの。
+2. **`string=?` と `string-contains?` は今も `:i64` を返す**（`:bool` ではない）。
+   compiler ADR 0191 の profile 5 が `= < > <= >= not not= zero? pos? neg?
+   empty? some?` を `:bool` へ移したとき、**string 述語だけ取り残された**
+   （同じ `kotoba-sema` frontend.cljc の中で、後から入った
+   `string-index-contains` は `:bool` を返す）。したがって `:bool` 宣言の関数は
+   string 述語を返せず、`true`/`false` リテラルと同じ `if` に並べられない。
+   `(if p true false)` で包むのが回避策で、これは ADR 0191 自身が「機械的」と
+   言う `(if p 1 0)` 移行の逆方向。
+
+   ### 「安全設計」ではない
+
+   `surface-status.edn` の `:classification-rule` は、安全制約を名乗るには
+   **named invariant + fail-closed 強制 + ADR** の 3 つを要求する。string 述語の
+   型付けはどれも持たず、分類規則の既定は `:not-yet-implemented`＝
+   **"Not a safety prohibition"**。しかも profile 5 の意図は逆向き
+   （述語が `and`/`or`/`not` で合成できるようにするため）なので、これは
+   **compiler の成熟度不足＝profile 5 移行の取り残し**であって、Kotoba の
+   安全設計の帰結ではない。上流には
+   `kotoba-lang/lang/surface-status.edn` の `:other-gaps :string-predicate-typing`
+   として実測 8 形とともに記録した。
+
+   なお 2026-08-10 の初版はこれを「リテラルと式は unify しない」と説明していたが、
+   **それは誤り**だった。`(if (< a 2) false (= a 3))` は通る —— `=` も呼び出しで
+   あり、問題は述語自身の型にある。
+
+### dark ramp の鏡映も `.kotoba`（`kotoba/dark_mirror.kotoba`）
+
+`jp-go-dds.dark` は docstring で規則を 1 本だけ宣言している ——
+`ramp の i 番目 → 同じ ramp の (n-1-i) 番目`。数値で `1000 - N` を計算せず
+**index で鏡映する**ことが、ramp ごとの例外表を消している（代償は中間 grey が
+数単位ずれること）。この判断を `.kotoba` が持ち、gate は
+**vendored `dds.css` に実在する 12 本の ramp すべて**（各 12〜13 段）で
+`dark/mirror` と突き合わせる。`light-name` は 156 件の literal 全件。
+
+`mirror-index` を `(- n i)` に壊すと 0 failures が 15 failures になることを確認済み。
+
+**走査側（`light-literals` / `ramps` / `opacity-inverted`）は `.cljc` に残す。**
+正規表現でテキストから構造を復元する設計は、移行ではなく設計変更が先
+（走査をやめて宣言データにする）。サイズは理由ではない —— `dds.css` は
+72,114 バイトで `string-value-byte-limit` 65,536 を超えるが、`:root` ブロック
+だけなら 8,617 バイトで**収まる**。同じ理由で `tokens/root-css` を
+`.kotoba` にする案は、入力を sheet 全体で取る限り成立しない。
 
 ## 使い方
 
