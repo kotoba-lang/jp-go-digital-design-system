@@ -100,7 +100,11 @@
   (testing "4pt グリッドは 4 の倍数であり続ける"
     (doseq [n (range 1 11)]
       (let [v (get tokens/hig->dads (str "--hig-spacing-" n))
-            px (Integer/parseInt (second (re-find #"calc\((\d+) / 16" v)))]
+            ;; `.cljc`: bare Integer/parseInt breaks the documented nbb runner
+            ;; ("Unable to resolve symbol: Integer/parseInt") — it resolved on
+            ;; the JVM only, so the whole nbb suite failed to load.
+            px #?(:clj (Integer/parseInt (second (re-find #"calc\((\d+) / 16" v)))
+                  :cljs (js/parseInt (second (re-find #"calc\((\d+) / 16" v)) 10))]
         (is (zero? (mod px 4)) (str "--hig-spacing-" n " = " px "px は 4pt グリッド外"))))))
 
 ;; ───────────────── 左辺が --hig-* 契約であること ─────────────────

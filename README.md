@@ -93,6 +93,39 @@ DADS に替えると token 契約に忠実に書かれた資産ほど色を失�
 **dark は表現できない**（上流に dark palette が無い）。dark が要るアプリは
 DADS ではなく kotoba-ui skin を選ぶ、が正しい分岐。
 
+### 橋渡しの決定核は `.kotoba`（`kotoba/bridge_document.kotoba`）
+
+token 正規化・breakout guard・除外・content identity は **Kotoba の
+`:document` 値**として書いてあり、`jp-go-dds.tokens` はその oracle。
+移行計画 W6 の per-slice 手順（ADR-2607279200 / ADR-2607270100 §10）に従い、
+**consumer API は一切変えていない** —— アプリは今までどおり
+`jp-go-dds.tokens/skin-css` を使う。
+
+gate は `test/jp_go_dds/kotoba_document_parity_test.clj`（JVM のみ。
+`kotoba-lang/compiler` は `:test` alias の**テスト専用**依存で、
+ライブラリ本体は実行時に依存しない）:
+
+- 71 件の bridge 全体が `tokens/bridge-css` と**バイト一致**すること
+- `brand-tokens` 除外が `tokens/bridge-css-except` と一致すること
+- `:color-tint` / `"color-tint"` / `"--hig-color-tint"` が 1 つの
+  custom property に落ちること（keyword を素の `str` に通して
+  `--hig-:color-tint` を作った実測バグの再発防止）
+- `{` `}` `;` `/*` を含む値が **fail closed** すること。Kotoba に `throw` は
+  無い（意図的な安全制約であって backend の欠落ではない）ので、guest は
+  失敗を `[:result :string :string]` の値として返す
+- `document-sha256` が token 契約の content identity になること
+
+実測した制約が 2 つある。どちらも**恒久の設計ではない**:
+
+1. **bridge は 1 つの document 値に入らない。** `document-container-item-limit`
+   は 32、`document-node-limit` は 256（kotoba-kir `value.cljc`）。71 件は
+   どちらも超えるので、最大 32 件の chunk に切って `join-decls` で繋ぐ。
+   chunk 境界が出力に現れないことは gate が別に assert する。
+2. **`if` の片枝が `false` リテラル・もう片枝が `string=?` 呼び出しだと
+   型が合わない**（compiler 875e388 で実測）。リテラル同士なら通るので
+   入れ子の `if` で書いてある。compiler ADR 0219 が「backend ではなく
+   interpreter の gap」と呼んでいるもの。
+
 ## 使い方
 
 ```clojure
