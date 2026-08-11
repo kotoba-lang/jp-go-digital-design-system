@@ -278,6 +278,21 @@ parity gate は、実際の挙動について何も証明しないからです�
 明示的に assert してあるので失われません。**どちらが正しいかを決めるのは
 migration ではなく shipped API の変更**なので、ここではしていません。
 
+### `table` の header semantics（`kotoba/table.kotoba`）
+
+table の固定された markup ではなく、セルが持つ意味を移した:
+
+- `:headers` の各セルは `th.dads-table__col-header[scope=col]`
+- `:row-header?` のときだけ、各 body row の 0 番セルは
+  `th.dads-table__row-header[scope=row]`
+- 残りは属性の無い `td`
+
+`scope` は見た目ではなく accessibility relationship なので、tag と属性を同じ
+規則から出す。これにより、見た目だけ通る `td scope=row` や、関係を持たない `th`
+への drift を gate が拾う。2 行 × 3 セルを含む matrix で `.cljc` の hiccup と
+全セルを突き合わせる。実測: row-header の index を 0 → 1 に壊すと
+0 → **12 failures**。
+
 ### 残っている `.cljc`
 
 `resolve-dark`（コントラスト検査用の別名解決）と `all-declarations` は
