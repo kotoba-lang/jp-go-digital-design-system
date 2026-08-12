@@ -1,6 +1,16 @@
 (ns dark-mirror
-  ;; No :export: the parity harness appends zero-arg case defns and executes
-  ;; them via KIR, the same shape bridge_document / css_document use.
+  ;; The rule is exported, so a host can call it.
+  ;;
+  ;; It was not, and the comment here gave the harness as the reason -- it
+  ;; appends zero-arg case defns and runs those. That is still how the harness
+  ;; works, but it was never what stopped an export list, and neither was the
+  ;; value boundary: measured 2026-08-12, a `:document` crosses the KIR entry
+  ;; boundary in both directions as `["vector" [["i64" 50] ...]]`, the host can
+  ;; build one, and a wrong tag is refused rather than coerced. What actually
+  ;; refused a list was `main` below -- a declared export list must contain the
+  ;; entry point, and this one did not. `main` is a smoke case, so it is listed
+  ;; here rather than deleted.
+  (:export [main mirror-index step-at mirror-step pair-text mirror-pairs])
   (:schemas {:dark/pairs-from [:record :dark/pairs-from
                                [[:steps :document]
                                 [:index :i64]
