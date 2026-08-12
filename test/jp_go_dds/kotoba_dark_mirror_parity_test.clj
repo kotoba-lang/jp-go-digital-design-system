@@ -39,12 +39,28 @@
        (str/join " " (map #(str "(document-i64 " % ")") (sort steps)))
        ")"))
 
-(defn- compile-and-run [cases]
+(defn- with-cases
+  "Append the case defns AND widen the module's export list to name them.
+
+  Widening is new. The module had no `:export` at all, and the comment in it
+  gave this harness as the reason -- which was never true of the value
+  boundary (a `:document` crosses it fine, in both directions, host-built) and
+  was only half true of the harness: the module defines a `main`, so any
+  declared export list has to contain it, and `ir/execute` runs exported
+  functions only, so the appended cases have to be in it too. Both are one
+  line each, and the module is callable from a host in exchange."
+  [cases]
   (let [defs (for [[name body] cases]
-               (str "(defn " name " [] :string " body ")"))
-        kir (:kir (compiler/compile-source
-                   (str module "\n" (str/join "\n" defs))
-                   :js-kotoba-v1))]
+               (str "(defn " name " [] :string " body ")"))]
+    (str (str/replace-first module
+                            #"\(:export \[[^\]]+\]\)"
+                            (str "(:export [main mirror-index step-at mirror-step "
+                                 "pair-text mirror-pairs "
+                                 (str/join " " (map first cases)) "])"))
+         "\n" (str/join "\n" defs))))
+
+(defn- compile-and-run [cases]
+  (let [kir (:kir (compiler/compile-source (with-cases cases) :js-kotoba-v1))]
     (into {} (map (fn [[name _]]
                     [name (ir/execute kir (symbol name) [] {:fuel fuel})])
                   cases))))
@@ -146,3 +162,50 @@
         "the :root block would fit — size is not what keeps the scan on the host")
     (is (every? #(<= (count %) chunk-size) (vals ramps))
         "every ramp fits one document value")))
+
+;; ── the module is callable, not only compilable ─────────────────────────────
+
+(def ^:private exported-kir
+  "The module as it ships, with no cases appended."
+  (delay (:kir (compiler/compile-source module :js-kotoba-v1))))
+
+(defn- doc-vector
+  "A `:document` as the host spells it. Measured 2026-08-12: this is exactly
+  what the guest hands back for `(document-vector (document-i64 n) …)`, so a
+  value read out of one export goes straight into another."
+  [steps]
+  ["vector" (mapv (fn [n] ["i64" n]) (sort steps))])
+
+(deftest a-host-can-call-the-rule-without-recompiling
+  ;; Every case above reaches the rule by appending a zero-arg defn and
+  ;; compiling again. That is fine for a test and impossible for a caller, so
+  ;; this asks the shipped shape the same questions with host arguments.
+  (let [kir @exported-kir
+        run (fn [f & args] (ir/execute kir f (vec args) {:fuel fuel}))]
+    (is (= 900 (run 'step-at (doc-vector [50 600 900]) 2)))
+    (is (= 900 (run 'mirror-step (doc-vector [50 600 900]) 0))
+        "the first step mirrors to the last")
+    (is (= 600 (run 'mirror-step (doc-vector [50 600 900]) 1))
+        "an odd-length ramp fixes its midpoint")
+    (is (= "50->900 600->600 900->50" (run 'mirror-pairs (doc-vector [900 50 600])))
+        "and the host may hand the steps in unsorted")))
+
+(deftest a-document-that-is-not-one-is-refused-rather-than-coerced
+  ;; The reason a host may build these at all: a wrong tag does not silently
+  ;; become a zero.
+  (is (thrown-with-msg? clojure.lang.ExceptionInfo #"unknown document tag"
+                        (ir/execute @exported-kir 'step-at
+                                    [["vector" [["str" "50"]]] 0] {:fuel fuel}))))
+
+(deftest the-cljc-and-the-exported-rule-agree-on-every-vendored-ramp
+  ;; `mirror-matches-cljc-for-every-vendored-ramp` above already binds these,
+  ;; through the appended-case path. This binds the same ramps through the path
+  ;; a host would use, so the two cannot drift apart unnoticed.
+  (doseq [[base steps] ramps
+          :let [sorted (vec (sort steps))
+                host (dark/mirror steps)]]
+    (dotimes [i (count sorted)]
+      (is (= (get host (nth sorted i))
+             (ir/execute @exported-kir 'mirror-step
+                         [(doc-vector steps) i] {:fuel fuel}))
+          (str base " step " (nth sorted i))))))
