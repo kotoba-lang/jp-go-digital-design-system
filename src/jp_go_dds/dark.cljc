@@ -71,7 +71,11 @@
   (:require [clojure.string :as str]
             [css.core :as css]
             [jp-go-dds.tokens :as tokens]
-            #?(:clj [clojure.java.io])))
+            ;; JVM だけ。`jp-go-dds.kotoba-oracle` は `.clj` で、ClojureScript
+            ;; の consumer に `kotoba.kir` を classpath へ足させないための
+            ;; 境界そのもの（同 ns の docstring 参照）。
+            #?@(:clj [[clojure.java.io]
+                      [jp-go-dds.kotoba-oracle :as oracle]])))
 
 ;; ── 上流 :root からの抽出 ────────────────────────────────────────────────────
 
@@ -126,14 +130,37 @@
           {}
           (keys literals)))
 
+(defn- mirror-index-host
+  "`mirror-index` の ClojureScript 経路。JVM では `kotoba/dark_mirror.kotoba` が
+  答えるので、こちらが動くのは cljs だけ —— そして
+  `kotoba-oracle-test` がこの関数を出荷成果物と直接突き合わせている。"
+  [n i]
+  (- n 1 i))
+
+(defn- mirror-index
+  "ramp の i 番目が写る先の添字。**この design system の規則そのもの**で、
+  だからこそ 1 箇所にしか無い: JVM では `kotoba/dark_mirror.kotoba` を
+  コンパイルした出荷成果物が答える。
+
+  段そのものではなく**添字**で鏡映するのが決定の中身（ns docstring 参照）。
+  1 段ぶんのスカラ 2 つしか渡らないので、entry boundary の 32 要素上限とは
+  無関係に委譲できる —— ramp 全体を渡す `mirror-pairs` はそうではない。"
+  [n i]
+  #?(:clj (oracle/call :dark-mirror 'mirror-index [(long n) (long i)])
+     :cljs (mirror-index-host n i)))
+
 (defn mirror
   "ramp 1 本の鏡映 `{段 鏡映先の段}`。i 番目 ↔ (n-1-i) 番目。
 
   段数が奇数なら中央の段は自分自身に写る（`600` が動かないのはこれ）。それは
-  欠陥ではなく、単調な ramp の中点は反転しても中点だという事実。"
+  欠陥ではなく、単調な ramp の中点は反転しても中点だという事実。
+
+  並べ替えと組み立てはここに残る（値であって判断ではない）。写す先を決める
+  規則だけが `mirror-index` 経由で `.kotoba` にある。"
   [steps]
-  (let [s (vec (sort steps))]
-    (zipmap s (rseq s))))
+  (let [s (vec (sort steps))
+        n (count s)]
+    (into {} (map-indexed (fn [i step] [step (nth s (mirror-index n i))]) s))))
 
 ;; ── dark / light の宣言 ──────────────────────────────────────────────────────
 
@@ -142,14 +169,30 @@
   鏡映しない」を参照。"
   "--dds-light-neutral-solid-gray-900")
 
+(defn- opacity-inverted-host
+  "`opacity-inverted` の ClojureScript 経路。
+
+  guest は空白を含めた literal（`\"rgba(0, 0, 0,\"`）で置換し、こちらは空白を
+  許す正規表現で置換する。vendored な `dds.css` に実際に現れるのは前者の書き方
+  だけなので**両者は現物に対して一致する**——それを憶測で済ませず
+  `kotoba-oracle-test` が palette 全体を両経路に通して突き合わせている。
+  正規表現の余分な寛容さは一度も効いたことがなく、ここを literal に寄せるのは
+  cljs の挙動を変える別の変更なので、この slice ではやらない。"
+  [v]
+  (str/replace v #"rgba\(\s*0\s*,\s*0\s*,\s*0\s*," "rgba(255, 255, 255,"))
+
 (defn- opacity-inverted
   "`rgba(0, 0, 0, 0.05)` → `rgba(255, 255, 255, 0.05)`。
 
   alpha は**上流の宣言から取る**（段名から `N/1000` を計算すると、上流が
   alpha を段名とずらした瞬間に静かに食い違う）。base だけを反転する —— これらは
-  scrim と overlay で、暗い地の上では白を薄く重ねるのが同じ役割を果たす。"
+  scrim と overlay で、暗い地の上では白を薄く重ねるのが同じ役割を果たす。
+
+  JVM では `kotoba/dark_declarations.kotoba` の `invert-scrim` が答える
+  （宣言 1 本ぶんの文字列しか渡らない）。"
   [v]
-  (str/replace v #"rgba\(\s*0\s*,\s*0\s*,\s*0\s*," "rgba(255, 255, 255,"))
+  #?(:clj (oracle/call :dark-declarations 'invert-scrim [v])
+     :cljs (opacity-inverted-host v)))
 
 (defn- -dark-declarations [dds-css]
   (let [lits (light-literals dds-css)

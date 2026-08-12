@@ -1,6 +1,13 @@
 (ns table
-  ;; No :export: the parity harness appends zero-arg case defns and executes
-  ;; them via KIR, the same shape the other modules in this repo use.
+  ;; The entry points are exported, so a host can call them.
+  ;;
+  ;; There was no list here at all, and the comment gave the parity harness as
+  ;; the reason -- it appends zero-arg case defns and executes those. That was
+  ;; never what stopped a list; it is the last module in this repo to get one,
+  ;; and `jp-go-dds.core/table` now calls `row-header-cell?` through
+  ;; `jp-go-dds.kotoba-oracle`, which runs exported functions only.
+  (:export [main header-tag header-attrs row-header-cell? body-cell-tag
+            body-cell-attrs])
   (:schemas {:tbl/cell [:record :tbl/cell
                         [[:row-header :bool] [:index :i64]]]}))
 

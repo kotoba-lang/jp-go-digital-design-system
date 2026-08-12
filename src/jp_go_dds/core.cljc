@@ -11,7 +11,137 @@
     `dds-ext-*` prefix + ext-css で明確に区別する(上流 class と混ぜない)。
   - 純 cljc — 描画は kotoba-lang/html(html.core/->html)。"
   (:require [clojure.string :as str]
-            [css.core :as css]))
+            [css.core :as css]
+            ;; JVM だけ。`jp-go-dds.kotoba-oracle` は `.clj` で、ClojureScript
+            ;; の consumer に `kotoba.kir` を classpath へ足させないための
+            ;; 境界そのもの（同 ns の docstring 参照）。cljs から見ると
+            ;; このファイルは 2026-08-12 以前と 1 バイトも変わらない。
+            #?(:clj [jp-go-dds.kotoba-oracle :as oracle])))
+
+;; --- the decisions that live in kotoba/ ---------------------------------------
+;;
+;; Each pair below is one rule. The `-host` half is the ClojureScript path and
+;; the other half is what the JVM runs: `kotoba/*.kotoba`, compiled, shipped
+;; under `resources/jp_go_dds/oracle/`, executed by `jp-go-dds.kotoba-oracle`.
+;;
+;; They are all the same shape — a rule handed ONE decision's worth of data, a
+;; couple of scalars or one small fixed record. That is not a coincidence, it is
+;; the boundary: the KIR entry boundary accepts a `:document` of at most 32
+;; members (measured 2026-08-12), so the rules that walk a whole options list or
+;; the whole 71-entry token table cannot cross and are not delegated. See
+;; `jp-go-dds.kotoba-oracle-test` for the numbers.
+
+#?(:clj
+   (def ^:private descriptors
+     "Record descriptors, resolved out of the shipped artifacts so a field
+      ORDER is never written down here a second time. A delay because the
+      artifacts are read lazily."
+     (delay
+       {:btn-opts  (oracle/record-type
+                    :button (first (oracle/param-types :button 'tag)))
+        :tbl-cell  (oracle/record-type
+                    :table (first (oracle/param-types :table 'row-header-cell?)))
+        :sb-option (oracle/record-type
+                    :select-banner
+                    (first (oracle/param-types :select-banner 'selected?)))})))
+
+(defn- heading-tag-host [level] (str "h" level))
+
+(defn- heading-tag
+  "見出しレベル → タグ名。JVM では `kotoba/components.kotoba` が答える。
+
+  委譲するかどうかは**データ**が決める（成果物が読めたかどうかではない）:
+  guest は `:i64` を取るので、整数でないレベルは host 経路のままにする。"
+  [level]
+  #?(:clj (if (integer? level)
+            (oracle/call :components 'heading-tag [(long level)])
+            (heading-tag-host level))
+     :cljs (heading-tag-host level)))
+
+(defn- banner-heading-tag
+  "notification-banner の見出しタグ。`kotoba/select_banner.kotoba` の側の
+  `heading-tag` —— banner はそちらの core が持っている決定。"
+  [level]
+  #?(:clj (if (integer? level)
+            (oracle/call :select-banner 'heading-tag [(long level)])
+            (heading-tag-host level))
+     :cljs (heading-tag-host level)))
+
+(defn- button-tag-host [href] (if href "a" "button"))
+
+(defn- button-tag
+  "`:href` があれば `<a>`、無ければ `<button>`。JVM では
+  `kotoba/button.kotoba` が答える。
+
+  guest の `:btn/opts` は属性 passthrough を `:extra :document` として持つが、
+  `tag` はそれを読まない —— なので空の document を渡す。渡さないのではなく
+  空を渡すのは、record が宣言どおりの形でなければ entry boundary が値ごと
+  拒否するため（実測: `\"value is not the declared record type\"`）。
+
+  ## `:href \"\"` は guest に渡さない（実測 2026-08-12）
+
+  `.kotoba` 側の規約は「省略可能な値は `:string` で、`\"\"` が『無い』を意味
+  する」（`button.kotoba` の \"Absent is the empty string here\"）。一方この
+  host は Clojure の真偽値で分岐するので、**空文字の href は『有る』**——
+  `(button \"OK\" {:href \"\"})` は今日 `<a href=\"\">` を出す。
+
+  つまり guest の型は「空」と「無い」を同じ値に潰しており、`\"\"` をそのまま
+  渡すと `<button>` が返って**既存の出力が黙って変わる**。170 の依存先を持つ
+  base design system でそれをやる理由が無いので、この 1 点だけ host 経路に
+  残す。判断しているのは**データ**であって、成果物が読めたかどうかではない
+  （`kotoba-oracle-test` がこの境界を、落ちうる向きで固定している）。"
+  [href]
+  #?(:clj (if (= "" href)
+            (button-tag-host href)
+            (oracle/call :button 'tag
+                         [(oracle/record (:btn-opts @descriptors)
+                                         ["" "" (if href (str href) "") "" ""
+                                          false false (oracle/document [])])]))
+     :cljs (button-tag-host href)))
+
+(defn- row-header-cell?-host [row-header? i]
+  (boolean (and row-header? (zero? i))))
+
+(defn- row-header-cell?
+  "その body セルが行見出しか。JVM では `kotoba/table.kotoba` が答える。
+
+  1 セルぶんの値（bool と添字）しか渡らないので、表がどれだけ大きくても
+  entry boundary の 32 要素上限に触れない —— 表そのものを渡す設計だったら
+  33 行目で拒否されていた。"
+  [row-header? i]
+  #?(:clj (oracle/call :table 'row-header-cell?
+                       [(oracle/record (:tbl-cell @descriptors)
+                                       [(boolean row-header?) (long i)])])
+     :cljs (row-header-cell?-host row-header? i)))
+
+(defn- option-placeholder?-host [v] (or (nil? v) (= "" v)))
+
+(defn- option-placeholder?
+  "value が空の option は placeholder（disabled かつ selected）。
+  JVM では `kotoba/select_banner.kotoba` が答える。"
+  [v]
+  #?(:clj (oracle/call :select-banner 'placeholder? [(if (nil? v) "" (str v))])
+     :cljs (option-placeholder?-host v)))
+
+(defn- option-selected?-host [v value]
+  (boolean (and (some? value) (= (str v) (str value)))))
+
+(defn- option-selected?
+  "現在値と一致する option か。**文字列として**比べる —— options は数値や
+  keyword を持つことがあり、`=` だと 18 と \"18\" が一致しない。
+
+  JVM では `kotoba/select_banner.kotoba` が答える。この規則は既に一度実害を
+  出している（`select` の docstring にある inkan の 18mm/12mm）ので、正本が
+  2 つある状態を残す理由が特に無い。option 1 個ぶんの record しか渡らない
+  —— options 全体を渡す `selected-count` は 33 個目で拒否される（都道府県の
+  select は 47 個）。"
+  [v value]
+  #?(:clj (oracle/call :select-banner 'selected?
+                       [(oracle/record (:sb-option @descriptors)
+                                       [(str v) ""
+                                        (if (some? value) (str value) "")
+                                        (some? value)])])
+     :cljs (option-selected?-host v value)))
 
 ;; --- primitives ---------------------------------------------------------------
 
@@ -33,7 +163,8 @@
                                :data-size size})
                  id (assoc :id id)
                  aria-label (assoc :aria-label aria-label))]
-     (if href
+     ;; どちらの要素になるかは `kotoba/button.kotoba` の決定（`button-tag`）。
+     (if (= "a" (button-tag href))
        [:a (assoc attrs :href href) label]
        [:button (cond-> (assoc attrs :type (if submit? "submit" "button"))
                   disabled (assoc :disabled true))
@@ -44,7 +175,7 @@
   ([level text] (heading level text {}))
   ([level text {:keys [size id]
                 :or {size (get {1 "45" 2 "32" 3 "24" 4 "20" 5 "18" 6 "16"} level "20")}}]
-   [(keyword (str "h" level))
+   [(keyword (heading-tag level))
     (cond-> {:class "dads-heading" :data-size size} id (assoc :id id))
     text]))
 
@@ -58,7 +189,7 @@
             :viewBox "0 0 24 24" :aria-hidden "true"}
       [:path {:d "M3.3 7.3L12 16L20.7 7.3" :fill "none"
               :stroke "currentcolor" :stroke-width 2}]]]
-    [(keyword (str "h" heading-level)) summary-text]]
+    [(keyword (heading-tag heading-level)) summary-text]]
    [:div {:class "dads-accordion__content"} content]])
 
 (defn input-text
@@ -158,11 +289,13 @@
                      aria-describedby (assoc :aria-describedby aria-describedby))]
           (map (fn [[v label]]
                  (cond
-                   (or (nil? v) (= "" v))
+                   ;; どの option が placeholder / selected かは
+                   ;; `kotoba/select_banner.kotoba` の決定。
+                   (option-placeholder? v)
                    [:option {:value "" :disabled true :selected true} label]
                    ;; 値の比較は str 経由 —— options は数値や keyword を持つことが
                    ;; あり、`=` だと 18 と "18" が一致せず selected が付かない。
-                   (and (some? value) (= (str v) (str value)))
+                   (option-selected? v value)
                    [:option {:value v :selected true} label]
                    :else
                    [:option {:value v} label]))
@@ -190,7 +323,10 @@
                  (into [:tr]
                        (map-indexed
                         (fn [i cell]
-                          (if (and row-header? (zero? i))
+                          ;; どのセルが行見出しかは `kotoba/table.kotoba` の決定。
+                          ;; `scope` は styling ではなく accessibility semantics
+                          ;; なので、tag と一緒に 1 箇所で決まる必要がある。
+                          (if (row-header-cell? row-header? i)
                             [:th {:class "dads-table__row-header" :scope "row"} cell]
                             [:td cell]))
                         row)))
@@ -229,6 +365,35 @@
                      [:circle {:cx 12 :cy 8 :r 1 :fill "Canvas"}]
                      [:path {:d "M11 11h2v6h-2z" :fill "Canvas"}]]}})
 
+(defn- banner-type-name
+  "type を guest が受け取れる文字列にする。nil や想定外の値は空文字にして、
+  未知として `icon-type` の fallback に委ねる（host 側で先に判断しない）。"
+  [t]
+  (if (or (keyword? t) (string? t)) (name t) ""))
+
+(defn- banner-icon-type-host [t]
+  (if (contains? banner-icons (keyword t)) t "info-1"))
+
+(defn- banner-icon-type
+  "未知の banner type を `info-1` に落とす規則。JVM では
+  `kotoba/select_banner.kotoba` が答える。"
+  [t]
+  (let [t (banner-type-name t)]
+    #?(:clj (oracle/call :select-banner 'icon-type [t])
+       :cljs (banner-icon-type-host t))))
+
+(defn- banner-icon-label-host [t]
+  (:label (get banner-icons (keyword (banner-icon-type-host t)))))
+
+(defn- banner-icon-label
+  "その banner type の `aria-label`。JVM では
+  `kotoba/select_banner.kotoba` が答える —— icon の意味を読み上げに出す文字列
+  なので、type → icon の対応と同じ場所で決まる必要がある。"
+  [t]
+  (let [t (banner-type-name t)]
+    #?(:clj (oracle/call :select-banner 'icon-label [t])
+       :cljs (banner-icon-label-host t))))
+
 (defn notification-banner
   "DADS notification-banner。opts:
   :type(:success|:error|:warning|:info-1|:info-2 既定 :info-1)
@@ -246,13 +411,18 @@
     :or {type :info-1 style "standard" heading-level 2
          close-label "閉じる" close-id "notification-banner-close"}}
    & body]
-  (let [{:keys [label paths]} (get banner-icons type (get banner-icons :info-1))]
+  (let [;; 未知の type を info-1 に落とす規則と、その type のラベルは
+        ;; `kotoba/select_banner.kotoba` の決定。SVG の path は幾何であって
+        ;; 判断ではないので、表はこちらに残る。
+        resolved (banner-icon-type type)
+        label (banner-icon-label type)
+        {:keys [paths]} (get banner-icons (keyword resolved))]
     [:div (cond-> (merge {:class "dads-notification-banner"
                           :data-style style
                           :data-type (name type)}
                          attrs)
             id (assoc :id id))
-     [(keyword (str "h" heading-level)) {:class "dads-notification-banner__heading"}
+     [(keyword (banner-heading-tag heading-level)) {:class "dads-notification-banner__heading"}
       (into [:svg {:class "dads-notification-banner__icon" :width 24 :height 24
                    :viewBox "0 0 24 24" :role "img" :aria-label label}]
             paths)

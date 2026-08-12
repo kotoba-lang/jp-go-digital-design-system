@@ -16,12 +16,27 @@
 
 (def ^:private fuel 262144)
 
-(defn- compile-and-run [cases]
+(defn- with-cases
+  "Append the case defns AND widen the module's export list to name them.
+
+  Widening is new here, and it is the same one-line change the other harnesses
+  in this repository already carry. `table.kotoba` was the last module with no
+  `:export` at all; it has one now because `jp-go-dds.core/table` calls
+  `row-header-cell?` through `jp-go-dds.kotoba-oracle`. `ir/execute` runs
+  exported functions only, so once a list exists the appended cases have to be
+  in it."
+  [cases]
   (let [defs (for [[name body] cases]
-               (str "(defn " name " [] :string " body ")"))
-        kir (:kir (compiler/compile-source
-                   (str module "\n" (str/join "\n" defs))
-                   :js-kotoba-v1))]
+               (str "(defn " name " [] :string " body ")"))]
+    (str (str/replace-first module
+                            #"\(:export \[[^\]]+\]\)"
+                            (str "(:export [main header-tag header-attrs "
+                                 "row-header-cell? body-cell-tag body-cell-attrs "
+                                 (str/join " " (map first cases)) "])"))
+         "\n" (str/join "\n" defs))))
+
+(defn- compile-and-run [cases]
+  (let [kir (:kir (compiler/compile-source (with-cases cases) :js-kotoba-v1))]
     (into {} (map (fn [[name _]]
                     [name (ir/execute kir (symbol name) [] {:fuel fuel})])
                   cases))))
