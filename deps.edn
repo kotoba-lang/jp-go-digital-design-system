@@ -15,7 +15,25 @@
          :git/sha "aa57f2730c87b7c2752151ed1a5f2e402c2ac71e"}
         io.github.kotoba-lang/css
         {:git/url "https://github.com/kotoba-lang/css"
-         :git/sha "6eda5ee28ec177b9e09fdbee92c55a050b18cf7d"}}
+         :git/sha "6eda5ee28ec177b9e09fdbee92c55a050b18cf7d"}
+        ;; The KIR interpreter is a RUNTIME dependency, and that is the whole
+        ;; point of it: `jp-go-dds.kotoba-oracle` executes the shipped
+        ;; `resources/jp_go_dds/oracle/*.kir.edn` through it, so the decisions
+        ;; in `kotoba/*.kotoba` are what this library RUNS on the JVM rather
+        ;; than what a parity test compares against (ADR-2608112100).
+        ;;
+        ;; The COMPILER stays test-only (see :test and :gen). It produced the
+        ;; artifacts and never reaches a consumer — a consumer needs to execute
+        ;; KIR, not to produce it.
+        ;;
+        ;; Pinned to the kir the pinned compiler emits for: compiler
+        ;; 875e3882 declares kotoba-kir 03222197. They have to match. KIR is a
+        ;; versioned document, and an interpreter reading a shape its emitter
+        ;; did not write is exactly the failure the artifact was meant to
+        ;; remove.
+        io.github.kotoba-lang/kotoba-kir
+        {:git/url "https://github.com/kotoba-lang/kotoba-kir.git"
+         :git/sha "03222197b9729819aef0ae6a0b83d9b990d212de"}}
  :aliases
  ;; kotoba-lang/compiler is TEST-ONLY, for the parity gate that compiles
  ;; kotoba/bridge_document.kotoba and requires byte-identical CSS emission to
@@ -30,4 +48,12 @@
                         ;; sealed native fuel + extracted sema/HIR boundary
                         :git/sha "875e3882dd76508d1a9a51f7f5ac0f1e563e490d"}}
          :main-opts   ["-m" "cognitect.test-runner"]
-         :exec-fn cognitect.test-runner.api/test}}}
+         :exec-fn cognitect.test-runner.api/test}
+  ;; Regenerate the shipped decision-core KIR. Combine with :test, which is
+  ;; where the compiler lives:
+  ;;
+  ;;     clojure -M:test:gen
+  ;;
+  ;; The generator namespace lives under test/ for the same reason: putting it
+  ;; in src/ would put the compiler back on a consumer's classpath.
+  :gen {:main-opts ["-m" "jp-go-dds.kotoba-oracle-gen"]}}}

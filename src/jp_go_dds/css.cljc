@@ -20,7 +20,9 @@
   nbb など resource が使えない実行系からは `component-path` でパスだけ取り、
   読み込みは呼び出し側が行う(このライブラリは I/O を持たない純関数を保つ方針)。"
   (:require [clojure.string :as str]
-            #?(:clj [clojure.java.io :as io])))
+            ;; JVM だけ（`jp-go-dds.kotoba-oracle` の docstring 参照）。
+            #?@(:clj [[clojure.java.io :as io]
+                      [jp-go-dds.kotoba-oracle :as oracle]])))
 
 (def core-components
   "`dds.css` に既に束ねてある component。これらを `css-for` に渡す必要はない。"
@@ -30,13 +32,39 @@
 
 (def core-component-set (set core-components))
 
-(defn component-path
-  "component 名 → resource 相対パス。`io/resource` にも
-  `<repo>/resources/` からの相対パスにもそのまま使える。"
+(defn- component-path-host
+  "`component-path` の ClojureScript 経路。JVM では
+  `kotoba/sheet_plan.kotoba` が答える。"
   [c]
   (str "jp_go_dds/components/" (name c) ".css"))
 
-(def global-path "jp_go_dds/global.css")
+(defn component-path
+  "component 名 → resource 相対パス。`io/resource` にも
+  `<repo>/resources/` からの相対パスにもそのまま使える。
+
+  JVM では `kotoba/sheet_plan.kotoba` が答える。component 1 個ぶんの名前しか
+  渡らない —— core component の集合ごと渡す `core?` / `plan-chunk` はそう
+  ではないので委譲していない。"
+  [c]
+  #?(:clj (if (keyword? c)
+            (oracle/call :sheet-plan 'component-path-of-keyword [c])
+            (oracle/call :sheet-plan 'component-path [(name c)]))
+     :cljs (component-path-host c)))
+
+(def ^:private global-path-host
+  "`global-path` の ClojureScript 経路。"
+  "jp_go_dds/global.css")
+
+(def global-path
+  "global.css の resource 相対パス。
+
+  **JVM ではこの値は出荷成果物から来る。** 以前は `.cljc` の literal と
+  `sheet_plan.kotoba` の literal が両側に在り、parity test が「2 つが等しい」
+  ことを要求していた —— それは 2 つの正本を等しく保つ仕掛けであって、正本を
+  1 つにする仕掛けではない（ADR-2608112100 / ADR-2608120200 決定 3）。今は
+  `.kotoba` が言い、ここはそれを読む。"
+  #?(:clj (oracle/call :sheet-plan 'global-path [])
+     :cljs global-path-host))
 
 (defn extra-components
   "`components` のうち `dds.css` に入っていないものだけを、渡した順で返す。

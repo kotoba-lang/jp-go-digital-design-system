@@ -42,7 +42,9 @@
   dark が要るアプリは DADS ではなく kotoba-ui skin を選ぶ、が正しい分岐。"
   (:require [clojure.string :as str]
             [css.core :as css]
-            #?(:clj [clojure.java.io])))
+            ;; JVM だけ（`jp-go-dds.kotoba-oracle` の docstring 参照）。
+            #?@(:clj [[clojure.java.io]
+                      [jp-go-dds.kotoba-oracle :as oracle]])))
 
 (def hig->dads
   "`--hig-*` 契約 → DADS primitive の対応表。
@@ -218,23 +220,44 @@
   `jp-go-dds.page/->page` の `:app-css` の前に連結する。"
   (str bridge-css a11y-css))
 
+(defn- ->custom-property-host
+  "`->custom-property` の ClojureScript 経路。JVM では
+  `kotoba/bridge_document.kotoba` が答える。ここは 2 実装のうちの片方であり、
+  `kotoba-oracle-test` が出荷成果物と直接突き合わせている。"
+  [token]
+  (let [t (if (keyword? token) (name token) (str token))]
+    (if (str/starts-with? t "--") t (str "--hig-" t))))
+
 (defn- ->custom-property
   "`:color-tint` / `\"color-tint\"` / `\"--hig-color-tint\"` を全て
   `\"--hig-color-tint\"` に正規化する。keyword は `name` を通す — 素の `str`
   だと `\":color-tint\"` になり、先頭のコロンごと変数名に混ざって
-  `var(--hig-:color-tint)` という決して解決しない参照を作る（実測）。"
+  `var(--hig-:color-tint)` という決して解決しない参照を作る（実測）。
+
+  JVM ではこの規則は `kotoba/bridge_document.kotoba` にあり、guest 側が
+  keyword を keyword のまま受け取る（`custom-property-of-keyword`）ので、
+  上の実測済みの罠は host の `str` の書き方ではなく**型**で塞がれている。
+  token 1 個ぶんのスカラしか渡らない —— 71 個の対応表そのものを渡す
+  `render-body` は 33 個目で拒否されるので、そちらは委譲していない。"
   [token]
-  (let [t (if (keyword? token) (name token) (str token))]
-    (if (str/starts-with? t "--") t (str "--hig-" t))))
+  #?(:clj (if (keyword? token)
+            (oracle/call :bridge-document 'custom-property-of-keyword [token])
+            (oracle/call :bridge-document 'custom-property [(str token)]))
+     :cljs (->custom-property-host token)))
 
 (defn hig-var
   "`--hig-*` を `var(...)` 参照として書くための小さなヘルパ。
   view / SVG は raw hex を書かずこれを通す（kotoba-uiux 規約 2）。
 
   skin に依存しない — kotoba-ui skin でも DADS skin でも同じ文字列を返し、
-  どちらの `--hig-*` が実際に効くかは出している CSS が決める。"
+  どちらの `--hig-*` が実際に効くかは出している CSS が決める。
+
+  JVM では `kotoba/bridge_document.kotoba` の `hig-var` が答える（正規化も
+  guest 側で起きるので、host は token を 1 個渡すだけ）。"
   [token]
-  (str "var(" (->custom-property token) ")"))
+  #?(:clj (oracle/call :bridge-document 'hig-var
+                       [(if (keyword? token) (name token) (str token))])
+     :cljs (str "var(" (->custom-property token) ")")))
 
 (defn bridged?
   "`token` がこの skin で DADS に橋渡しされているか。

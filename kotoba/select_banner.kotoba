@@ -8,7 +8,15 @@
   ;; `dark_mirror`). What refused a list was `main` below, which a declared
   ;; list must contain, plus `ir/execute` running exported functions only,
   ;; which the harness answers by widening the list with its own case names.
-  (:export [main option-attrs options-attrs selected-count select-attrs known-type? icon-type icon-label banner-attrs heading-tag])
+  ;;
+  ;; `placeholder?` and `selected?` were added to the list on 2026-08-12
+  ;; because `jp-go-dds.core/select` now asks them rather than restating them.
+  ;; They are the two rules whose restatement has already cost something (see
+  ;; "The one that has already cost something" below), and they take ONE
+  ;; option's worth of data, which is what keeps them delegable at all --
+  ;; `options-attrs` and `selected-count` take the whole list and are refused
+  ;; above 32 of them.
+  (:export [main option-attrs options-attrs selected-count select-attrs known-type? icon-type icon-label banner-attrs heading-tag placeholder? selected?])
   (:schemas {:sb/option [:record :sb/option
                          [[:value :string]
                           [:label :string]
