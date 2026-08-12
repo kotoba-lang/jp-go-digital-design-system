@@ -1,6 +1,14 @@
 (ns components
-  ;; No :export: the parity harness appends zero-arg case defns and executes
-  ;; them via KIR, the same shape button.kotoba uses.
+  ;; The entry points are exported, so a host can call them.
+  ;;
+  ;; They were not, and the comment here named this harness as the reason. The
+  ;; harness is not the reason and neither is the value boundary -- a
+  ;; `:document` crosses the KIR entry boundary in both directions, host-built,
+  ;; with a wrong tag refused rather than coerced (measured 2026-08-12,
+  ;; `dark_mirror`). What refused a list was `main` below, which a declared
+  ;; list must contain, plus `ir/execute` running exported functions only,
+  ;; which the harness answers by widening the list with its own case names.
+  (:export [main heading-tag heading-attrs chip-attrs input-attrs textarea-attrs toggle-outer-attrs toggle-input-attrs requirement-attrs status-attrs marker-class-for])
   (:schemas {:c/passthrough [:record :c/passthrough
                              [[:extra :document]
                               [:owned :document]

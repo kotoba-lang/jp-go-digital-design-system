@@ -1,6 +1,14 @@
 (ns button
-  ;; No :export: the parity harness appends zero-arg case defns and executes
-  ;; them via KIR, the same shape the other modules in this repo use.
+  ;; The entry points are exported, so a host can call them.
+  ;;
+  ;; They were not, and the comment here named this harness as the reason. The
+  ;; harness is not the reason and neither is the value boundary -- a
+  ;; `:document` crosses the KIR entry boundary in both directions, host-built,
+  ;; with a wrong tag refused rather than coerced (measured 2026-08-12,
+  ;; `dark_mirror`). What refused a list was `main` below, which a declared
+  ;; list must contain, plus `ir/execute` running exported functions only,
+  ;; which the harness answers by widening the list with its own case names.
+  (:export [main tag attrs open-tag])
   (:schemas {:btn/opts [:record :btn/opts
                         [[:type :string]
                          [:size :string]

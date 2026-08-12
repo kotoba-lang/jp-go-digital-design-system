@@ -68,8 +68,14 @@
   [cases]
   (let [defs (for [[name body] cases]
                (str "(defn " name " [] :string " body ")"))
+        ;; Widen the module's export list to name the cases too:
+        ;; `ir/execute` runs exported functions only, and the module now
+        ;; declares a list so that a host can call it without recompiling.
+        widened (str/replace-first bridge-doc #"\(:export \[[^\]]+\]\)"
+                                   (str "(:export [main custom-property custom-property-of-keyword hig-var entry table-doc bridged? render-body-except render-body join-decls wrap render bridge-digest bridge-print bridge-read "
+                                        (str/join " " (map first cases)) "])"))
         kir (:kir (compiler/compile-source
-                   (str bridge-doc "\n" (str/join "\n" defs))
+                   (str widened "\n" (str/join "\n" defs))
                    :js-kotoba-v1))]
     (into {} (map (fn [[name _]]
                     [name (ir/execute kir (symbol name) [] {:fuel fuel})])
