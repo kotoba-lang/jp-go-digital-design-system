@@ -33,7 +33,8 @@
    "components"        {:exported 'heading-tag :internal 'attr}
    "dark_declarations" {:exported 'rgba-black? :internal 'value-at}
    "dark_mirror"       {:exported 'mirror-index :internal 'pairs-from}
-   "select_banner"     {:exported 'known-type? :internal 'attr}})
+   "select_banner"     {:exported 'known-type? :internal 'attr}
+   "sheet_plan"        {:exported 'component-path :internal 'plan-from}})
 
 (defn- kir-of [module]
   (:kir (compiler/compile-source (slurp (str "kotoba/" module ".kotoba"))
@@ -80,4 +81,8 @@
     (is (false? (run "dark_declarations" 'rgba-black? "#ffffff")))
     (is (= "h2" (run "components" 'heading-tag 2)))
     (is (str/starts-with? (run "bridge_document" 'custom-property "spacing-4") "--"))
-    (is (= 2 (run "dark_mirror" 'mirror-index 5 2)))))
+    (is (= 2 (run "dark_mirror" 'mirror-index 5 2)))
+    (is (= "jp_go_dds/components/date-picker.css"
+           (run "sheet_plan" 'component-path "date-picker")))
+    (is (= "jp_go_dds/global.css" (run "sheet_plan" 'global-path))
+        "a zero-arg export is still an export")))
