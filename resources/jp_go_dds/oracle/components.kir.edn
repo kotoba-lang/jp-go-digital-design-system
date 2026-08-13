@@ -69,16 +69,19 @@
    (if
     (>= i n)
     false
-    (if
-     (string=?
-      (entry-name
-       (option-value-of
-        [:option :document]
-        (document-vector-at owned i)
-        (document-null)))
-      needle)
-     true
-     (owned-from owned needle (+ i 1) n))),
+    (let
+     [__kotoba_or_2
+      (string=?
+       (entry-name
+        (option-value-of
+         [:option :document]
+         (document-vector-at owned i)
+         (document-null)))
+       needle)]
+     (if
+      __kotoba_or_2
+      __kotoba_or_2
+      (owned-from owned needle (+ i 1) n)))),
    :param-types [:document :string :i64 :i64]}
   {:name owned?,
    :params [owned needle],

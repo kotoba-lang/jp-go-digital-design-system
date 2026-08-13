@@ -115,17 +115,17 @@ gate は `test/jp_go_dds/kotoba_document_parity_test.clj`（JVM のみ。
   失敗を `[:result :string :string]` の値として返す
 - `document-sha256` が token 契約の content identity になること
 
-実測した制約が 2 つある。どちらも**恒久の設計ではない**:
+実測した制約が 1 つある。**恒久の設計ではない**:
 
 1. **bridge は 1 つの document 値に入らない。** `document-container-item-limit`
    は 32、`document-node-limit` は 256（kotoba-kir `value.cljc`）。71 件は
    どちらも超えるので、最大 32 件の chunk に切って `join-decls` で繋ぐ。
    chunk 境界が出力に現れないことは gate が別に assert する。
-2. **`string=?` と `string-contains?` は `:bool`。** amu `1e21a1f` で
-   profile 5 の取り残しが閉じた。`:bool` 宣言の関数はそれらをそのまま返せ、
-   `and` / `or` / `not` で合成できる。`(if p true false)` はもう不要。
-   （`<` / `=` は HIR では `:bool` でも KIR execute が 0/1 word のままなので、
-   record の `:bool` 欄に入れるときは wrap を残す。）
+
+`string=?` / `string-contains?` は amu `1e21a1f` で `:bool` になった。
+`:bool` 宣言の関数はそれらをそのまま返せ、`and` / `or` / `not` で合成できる。
+（`<` / `=` は HIR では `:bool` でも KIR execute が 0/1 word のままなので、
+`:bool` を返すときは wrap を残す。）
 
 ### dark ramp の鏡映も `.kotoba`（`kotoba/dark_mirror.kotoba`）
 

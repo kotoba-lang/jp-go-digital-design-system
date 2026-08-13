@@ -95,10 +95,9 @@
 (defn owned-from [owned :document needle :string i :i64 n :i64] :bool
   (if (>= i n)
     false
-    (if (string=? (entry-name (option-or (document-vector-at owned i) (document-null)))
+    (or (string=? (entry-name (option-or (document-vector-at owned i) (document-null)))
                   needle)
-      true
-      (owned-from owned needle (+ i 1) n))))
+        (owned-from owned needle (+ i 1) n))))
 
 (defn owned? [owned :document needle :string] :bool
   (owned-from owned needle 0 (document-count owned)))
