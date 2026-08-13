@@ -81,47 +81,24 @@
 ;; byte for byte.
 
 ;; --- breakout guard -------------------------------------------------------
-;; Same four sequences as css.core's regex. Nested `if` rather than
-;; `(not (or ...))`: `or` yields an i64 in this profile, so folding bools
-;; through it is a type error rather than a shorthand.
+;; Same four sequences as css.core's regex.
 
 (defn safe? [s :string] :bool
-  (if (string-contains? s "{") false
-      (if (string-contains? s "}") false
-          (if (string-contains? s ";") false
-              (if (string-contains? s "/*") false true)))))
+  (not (or (string-contains? s "{")
+           (string-contains? s "}")
+           (string-contains? s ";")
+           (string-contains? s "/*"))))
 
 ;; --- token normalization --------------------------------------------------
 ;; A token already spelled `--…` is a complete custom-property name and is
 ;; taken as written; anything else names a member of the `--hig-` family.
 
 (defn double-dash-prefixed? [t :string] :bool
-  ;; The inner `if` looks redundant and is not. `string=?` still infers `:i64`,
-  ;; not `:bool` — compiler ADR 0191 moved `= < > <= >= not not= zero? pos?
-  ;; neg? empty? some?` to `:bool` in profile 5 but did not carry the string
-  ;; predicates with them (`kotoba-sema` frontend.cljc: `string=?` and
-  ;; `string-contains?` return `:i64`, while the newer `string-index-contains`
-  ;; returns `:bool`). So a `:bool`-declared function cannot return one, and it
-  ;; cannot sit opposite a `false` literal in an `if`. Wrapping it in an `if`
-  ;; converts the i64 word to a real bool, which is exactly the `(if p 1 0)`
-  ;; migration ADR 0191 calls mechanical, run in reverse.
-  ;;
-  ;; Measured 2026-08-10 against compiler 875e388 / sema 6568fb7:
-  ;;
-  ;;   (defn f [a :string b :string] :bool (string=? a b))  → expected bool, got i64
-  ;;   (defn f [a :i64]             :bool (if (< a 2) false (= a 3)))  → OK
-  ;;
-  ;; The second line is why the earlier reading of this — "a literal cannot
-  ;; unify with a call" — was wrong: `=` is a call and unifies fine. The
-  ;; predicate's own type is the whole story.
-  ;;
-  ;; TEMPORARY: drop the inner `if` when the string predicates join profile 5.
-  ;; Not a safety constraint — `surface-status.edn`'s own classification rule
-  ;; makes an unclassified gap `:not-yet-implemented`, "Not a safety
-  ;; prohibition", and profile 5's stated intent points the other way.
+  ;; `<` still needs the `if` wrap: HIR types it `:bool`, but KIR execute
+  ;; yields a 0/1 word, and that fails a `:bool` return.
   (if (< (string-byte-length t) 2)
     false
-    (if (string=? (string-substring t 0 2) "--") true false)))
+    (string=? (string-substring t 0 2) "--")))
 
 (defn custom-property [t :string] :string
   (if (double-dash-prefixed? t)

@@ -71,21 +71,23 @@
     (if
      (>= i n)
      false
-     (if
-      (if (string=? (name-at names i) needle) true false)
-      true
-      (member-from
-       (record-new
-        [:record
-         :plan/member-from
-         [[:names :document]
-          [:needle :string]
-          [:index :i64]
-          [:n :i64]]]
-        names
-        needle
-        (+ i 1)
-        n))))),
+     (let
+      [__kotoba_or_2 (string=? (name-at names i) needle)]
+      (if
+       __kotoba_or_2
+       __kotoba_or_2
+       (member-from
+        (record-new
+         [:record
+          :plan/member-from
+          [[:names :document]
+           [:needle :string]
+           [:index :i64]
+           [:n :i64]]]
+         names
+         needle
+         (+ i 1)
+         n)))))),
    :param-types [[:ref :plan/member-from]]}
   {:name core?,
    :params [core c],

@@ -81,7 +81,7 @@
    :params [v],
    :result :bool,
    :effects #{},
-   :body (if (string-contains? v "rgba(0, 0, 0,") true false),
+   :body (string-contains? v "rgba(0, 0, 0,"),
    :param-types [:string]}
   {:name invert-scrim,
    :params [v],

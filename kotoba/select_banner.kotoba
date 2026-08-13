@@ -141,13 +141,13 @@
 (defn placeholder? [v :string] :bool
   ;; nil and "" are the same thing by the time they reach here; the host
   ;; boundary already collapsed them, because both mean "no value".
-  (if (string=? v "") true false))
+  (string=? v ""))
 
 (defn selected? [x [:ref :sb/option]] :bool
   (if (placeholder? (record-get x :value))
     true
     (if (record-get x :has-current)
-      (if (string=? (record-get x :value) (record-get x :current)) true false)
+      (string=? (record-get x :value) (record-get x :current))
       false)))
 
 (defn option-attrs [x [:ref :sb/option]] :string
@@ -232,11 +232,11 @@
 ;; its message, and a banner that throws carries none.
 
 (defn known-type? [t :string] :bool
-  (if (string=? t "success") true
-      (if (string=? t "error") true
-          (if (string=? t "warning") true
-              (if (string=? t "info-1") true
-                  (if (string=? t "info-2") true false))))))
+  (or (string=? t "success")
+      (string=? t "error")
+      (string=? t "warning")
+      (string=? t "info-1")
+      (string=? t "info-2")))
 
 (defn icon-type [t :string] :string
   (if (known-type? t) t "info-1"))
