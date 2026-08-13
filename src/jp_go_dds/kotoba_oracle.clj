@@ -83,12 +83,12 @@
     2. `utf8-substring!` at some older kir pins guards with `(integer? start)`,
        which is false for a `js/BigInt`, so any core that formats an integer
        into a string breaks. **This repository is not exposed**: compiler
-       875e3882 declares kotoba-kir 03222197, whose `kir/value.cljc` is
-       BYTE-IDENTICAL to the fixed 6d08e3c, including the `:cljs` BigInt arm of
-       `bounded-host-byte-offset`. Do not \"upgrade\" past this pair casually —
-       emitter and interpreter are matched, and compiler `main` additionally
-       changes `string=?` from `:i64` to `:bool`, which is a source migration
-       of every core here, not a pin bump.
+       875e3882 declared kotoba-kir 03222197, whose `kir/value.cljc` is
+       BYTE-IDENTICAL to 6d08e3c, including the `:cljs` BigInt arm of
+       `bounded-host-byte-offset`. The current pair is amu 1e21a1f / kir
+       6d08e3c: emitter and interpreter stay matched, and `string=?` /
+       `string-contains?` are `:bool`, which is a source migration of the
+       cores rather than a pin bump by itself.
 
   Either way, the cost of crossing is not this file — it is asking 170
   repositories to put `kotoba.kir` on their classpath."

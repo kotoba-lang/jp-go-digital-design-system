@@ -74,7 +74,7 @@
 ;; --- element choice -------------------------------------------------------
 
 (defn anchor? [x [:ref :btn/opts]] :bool
-  (if (string=? (record-get x :href) "") false true))
+  (not (string=? (record-get x :href) "")))
 
 (defn tag [x [:ref :btn/opts]] :string
   (if (anchor? x) "a" "button"))
@@ -113,9 +113,9 @@
 (defn owned? [name :string] :bool
   ;; The three the component will not yield. Kept here rather than in the host
   ;; so that both the filtering and the emitting answer to one list.
-  (if (string=? name "class") true
-      (if (string=? name "data-type") true
-          (if (string=? name "data-size") true false))))
+  (or (string=? name "class")
+      (string=? name "data-type")
+      (string=? name "data-size")))
 
 (defn extras-from [x [:ref :btn/extra-from]] :string
   (let [extra (record-get x :extra)

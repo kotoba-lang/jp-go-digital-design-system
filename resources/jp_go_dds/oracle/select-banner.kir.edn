@@ -133,7 +133,7 @@
    :params [v],
    :result :bool,
    :effects #{},
-   :body (if (string=? v "") true false),
+   :body (string=? v ""),
    :param-types [:string]}
   {:name selected?,
    :params [x],
@@ -162,28 +162,25 @@
         [:has-current :bool]]]
       x
       :has-current)
-     (if
-      (string=?
-       (record-get
-        [:record
-         :sb/option
-         [[:value :string]
-          [:label :string]
-          [:current :string]
-          [:has-current :bool]]]
-        x
-        :value)
-       (record-get
-        [:record
-         :sb/option
-         [[:value :string]
-          [:label :string]
-          [:current :string]
-          [:has-current :bool]]]
-        x
-        :current))
-      true
-      false)
+     (string=?
+      (record-get
+       [:record
+        :sb/option
+        [[:value :string]
+         [:label :string]
+         [:current :string]
+         [:has-current :bool]]]
+       x
+       :value)
+      (record-get
+       [:record
+        :sb/option
+        [[:value :string]
+         [:label :string]
+         [:current :string]
+         [:has-current :bool]]]
+       x
+       :current))
      false)),
    :param-types [[:ref :sb/option]]}
   {:name option-attrs,
@@ -637,19 +634,27 @@
    :result :bool,
    :effects #{},
    :body
-   (if
-    (string=? t "success")
-    true
+   (let
+    [__kotoba_or_5 (string=? t "success")]
     (if
-     (string=? t "error")
-     true
-     (if
-      (string=? t "warning")
-      true
+     __kotoba_or_5
+     __kotoba_or_5
+     (let
+      [__kotoba_or_4 (string=? t "error")]
       (if
-       (string=? t "info-1")
-       true
-       (if (string=? t "info-2") true false))))),
+       __kotoba_or_4
+       __kotoba_or_4
+       (let
+        [__kotoba_or_3 (string=? t "warning")]
+        (if
+         __kotoba_or_3
+         __kotoba_or_3
+         (let
+          [__kotoba_or_2 (string=? t "info-1")]
+          (if
+           __kotoba_or_2
+           __kotoba_or_2
+           (string=? t "info-2"))))))))),
    :param-types [:string]}
   {:name icon-type,
    :params [t],

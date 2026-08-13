@@ -7,15 +7,24 @@
    :effects #{},
    :body
    (if
-    (string-contains? s "{")
-    false
-    (if
-     (string-contains? s "}")
-     false
+    (let
+     [__kotoba_or_4 (string-contains? s "{")]
      (if
-      (string-contains? s ";")
-      false
-      (if (string-contains? s "/*") false true)))),
+      __kotoba_or_4
+      __kotoba_or_4
+      (let
+       [__kotoba_or_3 (string-contains? s "}")]
+       (if
+        __kotoba_or_3
+        __kotoba_or_3
+        (let
+         [__kotoba_or_2 (string-contains? s ";")]
+         (if
+          __kotoba_or_2
+          __kotoba_or_2
+          (string-contains? s "/*")))))))
+    false
+    true),
    :param-types [:string]}
   {:name double-dash-prefixed?,
    :params [t],
@@ -25,7 +34,7 @@
    (if
     (< (string-byte-length t) 2)
     false
-    (if (string=? (string-substring t 0 2) "--") true false)),
+    (string=? (string-substring t 0 2) "--")),
    :param-types [:string]}
   {:name custom-property,
    :params [t],

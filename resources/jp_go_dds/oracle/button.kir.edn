@@ -160,13 +160,14 @@
    :result :bool,
    :effects #{},
    :body
-   (if
-    (string=? name "class")
-    true
+   (let
+    [__kotoba_or_3 (string=? name "class")]
     (if
-     (string=? name "data-type")
-     true
-     (if (string=? name "data-size") true false))),
+     __kotoba_or_3
+     __kotoba_or_3
+     (let
+      [__kotoba_or_2 (string=? name "data-type")]
+      (if __kotoba_or_2 __kotoba_or_2 (string=? name "data-size"))))),
    :param-types [:string]}
   {:name extras-from,
    :params [x],

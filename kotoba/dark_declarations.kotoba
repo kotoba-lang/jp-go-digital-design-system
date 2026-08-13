@@ -102,7 +102,7 @@
 ;; fails loudly instead of leaving black scrims on a dark ground.
 
 (defn rgba-black? [v :string] :bool
-  (if (string-contains? v "rgba(0, 0, 0,") true false))
+  (string-contains? v "rgba(0, 0, 0,"))
 
 (defn invert-scrim [v :string] :string
   (string-replace-all v "rgba(0, 0, 0," "rgba(255, 255, 255,"))

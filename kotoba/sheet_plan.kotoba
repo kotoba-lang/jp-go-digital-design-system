@@ -138,17 +138,9 @@
         n (record-get x :n)]
     (if (>= i n)
       false
-      ;; `string=?` is typed `:i64`, not `:bool` (kotoba-sema frontend: the
-      ;; string predicates did not move to profile 5 with `= < > <= >=`), so
-      ;; it cannot sit opposite a `false` literal in an `if` inside a
-      ;; `:bool`-declared function. The wrapping `if` converts the word to a
-      ;; real bool. TEMPORARY: drop it when the string predicates join
-      ;; profile 5 — this is a `:not-yet-implemented` gap, not a safety
-      ;; constraint.
-      (if (if (string=? (name-at names i) needle) true false)
-        true
-        (member-from (record-new [:ref :plan/member-from]
-                                 names needle (+ i 1) n))))))
+      (or (string=? (name-at names i) needle)
+          (member-from (record-new [:ref :plan/member-from]
+                                   names needle (+ i 1) n))))))
 
 (defn core? [core :document c :string] :bool
   ;; True when `dds.css` already carries this component. Such a name is
