@@ -3,7 +3,9 @@
 (require '[cljs.test :as t]
          '[jp-go-dds.core-test]
          '[jp-go-dds.tokens-test]
-         '[jp-go-dds.dark-test])
+         '[jp-go-dds.dark-test]
+         '[jp-go-dds.skin-test])
 (defmethod t/report [:cljs.test/default :end-run-tests] [m]
   (when-not (t/successful? m) (set! (.-exitCode js/process) 1)))
-(t/run-tests 'jp-go-dds.core-test 'jp-go-dds.tokens-test 'jp-go-dds.dark-test)
+(t/run-tests 'jp-go-dds.core-test 'jp-go-dds.tokens-test 'jp-go-dds.dark-test
+             'jp-go-dds.skin-test)
