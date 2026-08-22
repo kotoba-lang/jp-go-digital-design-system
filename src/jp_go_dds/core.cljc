@@ -306,6 +306,73 @@
    (when error
      [:span {:class "dads-select__error-text"} error])])
 
+(defn language-selector
+  "DADS language selector。上流 language-selector/playground.html の
+  language-selector + menu-list-box + menu-list markup に忠実。
+
+  `languages` は `{:code \"ja\" :label \"日本語\" :href \"?lang=ja\"}` の列。
+  opts:
+  - :id-prefix   複数配置時に一意な id の接頭辞（既定 language-selector）
+  - :current     現在言語の code
+  - :size        opener の sm|md（既定 sm）
+  - :style       text|outlined|filled（既定 text）
+  - :text-weight normal|bold（既定 normal）
+  - :attrs       root への追加属性
+
+  オープナー表記はDADS規定により翻訳せず、常に `Language`。各言語名は
+  その言語自身の表記を渡す。開閉・Escape・矢印キーの挙動はホスト側が
+  data-language-selector-* hookへ一度だけ委譲して実装する。"
+  [{:keys [id-prefix current languages size style text-weight attrs]
+    :or {id-prefix "language-selector" size "sm" style "text"
+         text-weight "normal"}}]
+  (let [opener-id (str id-prefix "-opener")
+        popup-id (str id-prefix "-popup")
+        current (some-> current name)]
+    [:div (merge {:class "dads-language-selector"
+                  :data-language-selector true}
+                 attrs)
+     [:div {:class "dads-menu-list-box"}
+      [:button {:id opener-id
+                :class "dads-menu-list-box__opener"
+                :type "button"
+                :data-language-selector-opener true
+                :aria-controls popup-id
+                :aria-expanded "false"
+                :data-size size
+                :data-style style
+                :data-text-weight text-weight}
+       [:svg {:class "dads-menu-list-box__opener-icon"
+              :width 24 :height 24 :viewBox "0 0 24 24"
+              :fill "currentcolor" :aria-hidden "true"}
+        [:path {:d "M12 21.5A9.5 9.5 0 0 1 2.5 12c0-5.2 4.3-9.5 9.5-9.5s9.6 4.3 9.5 9.5c0 5.2-4.3 9.5-9.5 9.5Zm0-1.5c1-1.3 1.7-2.8 2.1-4.3H10c.4 1.5 1 3 2.1 4.3Zm-2-.3c-.8-1.2-1.4-2.6-1.7-4H5c1 2 3 3.5 5.2 4Zm4 0c2.2-.5 4-2 5-4h-3.3c-.4 1.4-1 2.8-1.8 4Zm-9.7-5.5H8a13 13 0 0 1 0-4.4H4.3a8 8 0 0 0 0 4.4Zm5.2 0h5c.2-1.5.2-3 0-4.4h-5c-.2 1.5-.2 3 0 4.4Zm6.5 0h3.7a8 8 0 0 0 0-4.4H16c.2 1.5.2 3 0 4.4Zm-.3-5.9H19c-1-2-3-3.5-5.2-4 .8 1.2 1.4 2.6 1.8 4Zm-5.8 0H14A12 12 0 0 0 12 4a12 12 0 0 0-2.1 4.3Zm-5 0h3.4c.4-1.4 1-2.8 1.8-4-2.3.5-4.1 2-5.2 4Z"}]]
+       "Language"
+       [:svg {:class "dads-menu-list-box__opener-arrow"
+              :width 16 :height 16 :viewBox "0 0 24 24"
+              :fill "currentcolor" :aria-hidden "true"}
+        [:path {:d "m20.5 6.6-8 8-8-8L3.1 8l9.4 9.4L21.9 8l-1.4-1.4Z"}]]]
+      [:div {:id popup-id :class "dads-menu-list-box__popup"
+             :data-language-selector-popup true :hidden true}
+       (into
+        [:ul {:class "dads-menu-list" :data-language-selector-menu true}]
+        (map
+         (fn [{:keys [code label href]}]
+           (let [code (name code)
+                 selected? (= current code)]
+             [:li
+              [:a (cond-> {:class "dads-menu-list__item"
+                           :data-language-selector-item true
+                           :href href :lang code :hreflang code
+                           :data-type "box" :data-size "regular"}
+                    selected? (assoc :data-current true
+                                     :aria-current "true"))
+               [:svg {:class (str "dads-menu-list__front-icon "
+                                  "dads-language-selector__check")
+                      :width 24 :height 24 :viewBox "0 0 24 24"
+                      :fill "currentcolor" :aria-hidden "true"}
+                [:path {:d "m9.5 18-5.7-5.7 1.5-1.4 4.2 4.3L18.7 6l1.4 1.4L9.5 18Z"}]]
+               [:span {:class "dads-menu-list__label"} label]]]))
+         languages))]]]))
+
 (defn table
   "DADS table。{:caption :headers [..] :rows [[..]..] :row-header? bool}
   row-header? true なら各行の先頭セルを th scope=row にする。"
