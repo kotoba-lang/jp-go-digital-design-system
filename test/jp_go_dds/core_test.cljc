@@ -190,6 +190,32 @@
       (is (str/includes? s "<option value=\"\" disabled selected>選択してください</option>"))
       (is (str/includes? s "<option value=\"1\" selected>足立区</option>")))))
 
+(deftest language-selector-markup
+  (let [markup
+        (html/->html
+         (dds/language-selector
+          {:id-prefix "header-language"
+           :current :ja
+           :languages [{:code :ja :label "日本語" :href "?lang=ja"}
+                       {:code :en :label "English" :href "?lang=en"}]}))]
+    (testing "上流3コンポーネントのclassと開閉hookを合成する"
+      (is (str/includes? markup "class=\"dads-language-selector\""))
+      (is (str/includes? markup "class=\"dads-menu-list-box\""))
+      (is (str/includes? markup "class=\"dads-menu-list\""))
+      (is (str/includes? markup "id=\"header-language-opener\""))
+      (is (str/includes? markup "aria-controls=\"header-language-popup\""))
+      (is (str/includes? markup "aria-expanded=\"false\""))
+      (is (str/includes? markup "data-language-selector-opener")))
+    (testing "オープナーは常にLanguage、言語名は自称"
+      (is (str/includes? markup ">Language<"))
+      (is (str/includes? markup "lang=\"ja\""))
+      (is (str/includes? markup "hreflang=\"ja\""))
+      (is (str/includes? markup ">日本語<"))
+      (is (str/includes? markup ">English<")))
+    (testing "現在言語だけにcurrentと可視化用checkが付く"
+      (is (= 1 (count (re-seq #"aria-current=\"true\"" markup))))
+      (is (= 2 (count (re-seq #"dads-language-selector__check" markup)))))))
+
 (deftest form-field-requirement-vs-status
   (testing "必須マーカーは __requirement(data-required=true)。__status ではない"
     (let [f (html/->html (dds/form-field {:label "氏名" :requirement "※必須" :required? true} [:i]))]
