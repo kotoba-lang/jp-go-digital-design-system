@@ -574,7 +574,8 @@
   {;; HIG は touch で 44pt 以上を要求する。coarse pointer に限定し、desktop では
    ;; DADS 自身の寸法を保つ(全環境で太らせない)。
    "(pointer:coarse)"
-   [[".dads-button,.dads-accordion__summary" {:min-height "44px"}]]
+   [[".dads-button,.dads-accordion__summary,.dads-menu-list-box__opener"
+     {:min-height "44px"}]]
 
    "(max-width:48rem)"
    [[".dds-ext-section" {:padding-block "2rem"}]

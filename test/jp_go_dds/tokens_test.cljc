@@ -135,7 +135,8 @@
     (is (str/includes? (tight tokens/a11y-css) "color-scheme:light")))
   (testing "tap target 44px"
     (is (str/includes? (tight tokens/a11y-css) "min-height:44px"))
-    (is (str/includes? tokens/a11y-css ".dads-button")))
+    (is (str/includes? tokens/a11y-css ".dads-button"))
+    (is (str/includes? tokens/a11y-css ".dads-menu-list-box__opener")))
   (testing "safe-area は左右下の全辺"
     (doseq [side ["left" "right" "bottom"]]
       (is (str/includes? (tight tokens/a11y-css) (str "env(safe-area-inset-" side))
