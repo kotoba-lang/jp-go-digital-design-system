@@ -208,7 +208,8 @@
   (css/css
    {:rules
     [[":root" {:color-scheme "light"}]
-     [(str ".dads-button,.dads-accordion__summary,.dads-input-text__input,"
+     [(str ".dads-button,.dads-accordion__summary,.dads-menu-list-box__opener,"
+           ".dads-input-text__input,"
            ".dads-textarea__textarea,.dads-checkbox")
       {:min-height 44}]
      ["body" {:padding-left "env(safe-area-inset-left,0px)"
