@@ -137,8 +137,14 @@
     (is (str/includes? (tight tokens/a11y-css) "min-height:44px"))
     (is (str/includes? tokens/a11y-css ".dads-button"))
     (is (str/includes? tokens/a11y-css ".dads-menu-list-box__opener")))
-  (testing "safe-area は左右下の全辺"
-    (doseq [side ["left" "right" "bottom"]]
+  ;; The name of this test used to be 「左右下の全辺」 -- three sides, called
+  ;; all of them. It locked the gap in: `top` was the one side a notched phone
+  ;; needs, and nothing here would have gone red while a page ran its first row
+  ;; of content under the Dynamic Island (measured 2026-09-06 on an iOS 26.5
+  ;; Simulator). A test that names a subset "全辺" is not a weaker test, it is
+  ;; a wrong one.
+  (testing "safe-area は上下左右の 4 辺すべて"
+    (doseq [side ["top" "left" "right" "bottom"]]
       (is (str/includes? (tight tokens/a11y-css) (str "env(safe-area-inset-" side))
           (str side " が safe-area 未対応")))))
 
