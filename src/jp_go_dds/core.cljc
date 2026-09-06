@@ -559,7 +559,11 @@
    ;; light に従わせるには CSS 側の宣言も要る。dark を自作するのではなく
    ;; 「light だけである」ことを述べている。
    [":root" {:color-scheme "light"}]
-   ["body" {:padding-bottom "env(safe-area-inset-bottom)"}]])
+   ;; Top as well as bottom. `ext-rules` ships in the stylesheet a WebView app
+   ;; reads from its own bundle, and that is the surface with an inset at the
+   ;; top; see `tokens/a11y-css` for what was measured on 2026-09-06.
+   ["body" {:padding-top "env(safe-area-inset-top)"
+            :padding-bottom "env(safe-area-inset-bottom)"}]])
 
 (def ext-media
   "viewport / 入力デバイス依存の ext 規則。上流の vendored subset は

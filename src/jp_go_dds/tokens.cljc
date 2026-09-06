@@ -212,7 +212,19 @@
            ".dads-input-text__input,"
            ".dads-textarea__textarea,.dads-checkbox")
       {:min-height 44}]
-     ["body" {:padding-left "env(safe-area-inset-left,0px)"
+     ;; TOP included. The docstring above has always said 上下左右, and until
+     ;; 2026-09-06 this rule covered three sides -- so a page with
+     ;; `viewport-fit=cover` ran its first row of content UNDER the status bar
+     ;; and the Dynamic Island. Measured that day on an iOS 26.5 Simulator
+     ;; (iPhone 16): cloud-itonami-app's nav row was clipped behind the island,
+     ;; unreadable, and its buttons were not tappable.
+     ;;
+     ;; `env(safe-area-inset-top)` is 0 anywhere without an inset -- desktop,
+     ;; Android without a cutout, a browser tab -- and the `0px` fallback
+     ;; covers engines that do not know `env` at all, so this costs those
+     ;; surfaces nothing.
+     ["body" {:padding-top "env(safe-area-inset-top,0px)"
+              :padding-left "env(safe-area-inset-left,0px)"
               :padding-right "env(safe-area-inset-right,0px)"
               :padding-bottom "env(safe-area-inset-bottom,0px)"}]]}))
 
