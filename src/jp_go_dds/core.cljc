@@ -528,8 +528,16 @@
    [".dds-ext-section" {:padding-block "3rem"
                         :border-top "1px solid var(--color-neutral-solid-gray-200)"}]
    [".dds-ext-section:first-of-type" {:border-top "none"}]
+   ;; `min(…,100%)` は装飾ではない。`minmax(19rem,1fr)` の track は 19rem より
+   ;; 細くなれないので、container がそれより狭い画面ではグリッドが container を
+   ;; はみ出し、**ページ全体が横スクロールする**。実測 2026-09-07:
+   ;; kotoba-lang.org を 320px 幅で開くと 32px の横スクロールが出ており、
+   ;; 原因は `:min "19rem"` / `"21rem"` を渡した grid だった(360px 以上では
+   ;; 出ないので、狭い端末だけで再現する)。`min()` を噛ませると track は
+   ;; 「指定値」と「container 幅」の小さい方まで縮み、1 列に落ちる。
    [".dds-ext-grid" {:display "grid"
-                     :grid-template-columns "repeat(auto-fill,minmax(var(--dds-ext-grid-min,16rem),1fr))"
+                     :grid-template-columns
+                     "repeat(auto-fill,minmax(min(var(--dds-ext-grid-min,16rem),100%),1fr))"
                      :gap "1.5rem"}]
    [".dds-ext-grid>*" {:min-width 0}]
    [".dds-ext-stack" {:display "flex" :flex-direction "column"
