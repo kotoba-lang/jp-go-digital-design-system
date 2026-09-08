@@ -11,7 +11,7 @@
   here is what the scan produced, not the stylesheet.
 
   Consumer APIs are unchanged; `kotoba-lang/compiler` is a test-only dep."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [jp-go-dds.dark :as dark]
             [jp-go-dds.tokens :as tokens]

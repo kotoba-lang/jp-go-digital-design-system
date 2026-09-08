@@ -1,6 +1,6 @@
 (ns jp-go-dds.core-test
   (:require [clojure.test :refer [deftest is testing]]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [html.core :as html]
             [jp-go-dds.core :as dds]
             [jp-go-dds.page :as page]

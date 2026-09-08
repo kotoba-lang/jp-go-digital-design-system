@@ -17,7 +17,7 @@
   and `kotoba-lang/compiler` is a test-only dep."
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [jp-go-dds.css :as dcss]
             [kotoba.compiler.core :as compiler]

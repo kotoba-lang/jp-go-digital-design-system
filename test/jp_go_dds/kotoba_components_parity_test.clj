@@ -11,7 +11,7 @@
   map, so they are a different shape and get their own slice.
 
   Consumer APIs are unchanged; `kotoba-lang/compiler` is a test-only dep."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [jp-go-dds.core :as core]
             [kotoba.compiler.core :as compiler]

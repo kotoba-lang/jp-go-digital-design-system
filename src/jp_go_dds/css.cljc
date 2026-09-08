@@ -19,7 +19,7 @@
 
   nbb など resource が使えない実行系からは `component-path` でパスだけ取り、
   読み込みは呼び出し側が行う(このライブラリは I/O を持たない純関数を保つ方針)。"
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             ;; JVM だけ（`jp-go-dds.kotoba-oracle` の docstring 参照）。
             #?@(:clj [[clojure.java.io :as io]
                       [jp-go-dds.kotoba-oracle :as oracle]])))

@@ -1,5 +1,5 @@
 (ns jp-go-dds.behavior-test
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [jp-go-dds.behavior :as behavior]))
 
