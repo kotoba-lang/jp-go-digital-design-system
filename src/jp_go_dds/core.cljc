@@ -10,7 +10,7 @@
   - 上流に無い layout 補助(container/section/grid/stack/card/hero)は
     `dds-ext-*` prefix + ext-css で明確に区別する(上流 class と混ぜない)。
   - 純 cljc — 描画は kotoba-lang/html(html.core/->html)。"
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [css.core :as css]
             ;; JVM だけ。`jp-go-dds.kotoba-oracle` は `.clj` で、ClojureScript
             ;; の consumer に `kotoba.kir` を classpath へ足させないための

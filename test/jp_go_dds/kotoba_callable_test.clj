@@ -16,7 +16,7 @@
   So this asks each module, in the shape it ships, the two questions the parity
   tests structurally cannot: does it compile without a harness, and does the
   export list mean anything."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [kotoba.compiler.core :as compiler]
             [kotoba.kir :as ir]))

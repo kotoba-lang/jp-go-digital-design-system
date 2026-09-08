@@ -19,7 +19,7 @@
 
   Consumer APIs are unchanged; `kotoba-lang/compiler` is a test-only dep."
   (:require [clojure.edn :as edn]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [jp-go-dds.dark :as dark]
             [kotoba.compiler.core :as compiler]

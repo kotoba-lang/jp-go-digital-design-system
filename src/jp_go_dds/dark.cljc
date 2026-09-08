@@ -68,7 +68,7 @@
   `[data-theme=\"light\"]` 側も明示的に light を書き戻す —— media query が既に
   `:root` を dark にしているので、書き戻さないと OS が dark の環境で light を
   選べない（片方向にしか効かない切り替えは切り替えではない）。"
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [css.core :as css]
             [jp-go-dds.tokens :as tokens]
             ;; JVM だけ。`jp-go-dds.kotoba-oracle` は `.clj` で、ClojureScript

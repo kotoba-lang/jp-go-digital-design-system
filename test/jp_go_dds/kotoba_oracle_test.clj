@@ -27,7 +27,7 @@
   runs them against the guest directly."
   (:require [clojure.edn :as edn]
             [clojure.java.io :as io]
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [clojure.walk :as walk]
             [jp-go-dds.core :as core]

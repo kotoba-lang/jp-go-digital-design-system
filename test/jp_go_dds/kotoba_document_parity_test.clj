@@ -19,7 +19,7 @@
   Consumer APIs are unchanged; `jp-go-dds.tokens` remains what 170 repos
   require. This gate is what keeps a second derivation of the token contract
   from drifting away from it."
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [css.core :as css]
             [jp-go-dds.tokens :as tokens]

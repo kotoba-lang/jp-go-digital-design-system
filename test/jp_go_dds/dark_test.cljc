@@ -8,7 +8,7 @@
   劣化させないため —— 色の劣化は「落ちるテスト」にしないと誰も気付かない。"
   (:require #?(:clj [clojure.test :refer [deftest is testing]]
                :cljs [cljs.test :refer-macros [deftest is testing]])
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [jp-go-dds.dark :as dark]
             [jp-go-dds.tokens :as tokens]))
 

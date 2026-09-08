@@ -4,7 +4,7 @@
   README は `dds.css` + `skin-css` の併用を勧めており、その構成では同じページに
   素の `<table>` と `.dads-table` component が同居しうる。skin は素の markup を
   助けるためのものなので、component を壊してはならない。"
-  (:require [clojure.string :as str]
+  (:require [kotoba.lang.text :as str]
             [clojure.test :refer [deftest is testing]]
             [jp-go-dds.skin :as skin]))
 

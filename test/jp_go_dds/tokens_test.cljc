@@ -10,7 +10,7 @@
   変わったときに、ここで落ちてほしい。"
   (:require #?(:clj [clojure.test :refer [deftest is testing]]
                :cljs [cljs.test :refer-macros [deftest is testing]])
-            [clojure.string :as str]
+            [kotoba.lang.text :as str]
             [jp-go-dds.tokens :as tokens]))
 
 (def ^:private vendored-css
