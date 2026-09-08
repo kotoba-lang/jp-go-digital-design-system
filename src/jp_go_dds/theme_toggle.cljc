@@ -6,7 +6,7 @@
  (str
    ;; ── the theme switch: the Lisp mark is the control ───────────────────────
    "#kot-theme{min-width:calc(44 / 16 * 1rem);min-height:calc(44 / 16 * 1rem);"
-   "padding-inline:var(--hig-spacing-2);color:var(--hig-color-tint)}"
+   "padding-inline:var(--hig-spacing-2,calc(8 / 16 * 1rem));color:var(--hig-color-tint,var(--color-key-900))}"
    ".kot-yy{display:inline-flex}"
    ".kot-yy-ring{fill:none;stroke:currentColor;stroke-width:1;opacity:.5}"
    ".kot-yy-yin{fill:currentColor}"
@@ -14,7 +14,7 @@
    ;; The lambda sitting on the inked half is knocked out in the page surface;
    ;; the other is inked in the tint. Swap them and each one vanishes into its
    ;; own background.
-   ".kot-lam-cut{stroke:var(--hig-color-system-background)}"
+   ".kot-lam-cut{stroke:var(--hig-color-system-background,var(--color-neutral-white))}"
    ".kot-lam-ink{stroke:currentColor}"
    ".kot-yy-fig{transform-origin:12px 12px;transition:transform .55s cubic-bezier(.68,-0.3,.32,1.3)}"
    "#kot-theme[aria-checked=\"true\"] .kot-yy-fig{transform:rotate(180deg)}"
