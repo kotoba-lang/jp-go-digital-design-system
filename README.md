@@ -399,3 +399,15 @@ DADS の semantic token(`--color-semantic-success-2` / `-warning-yellow-2` /
 このモノレポの標準 UI スタックは kotoba-ui（ADR-2607122200）。本ライブラリは
 「デジタル庁デザインシステムに合わせたい日本の公共・行政文脈サービス」向けの
 **明示的な opt-out 先**であり、採用する repo は理由を ADR に書くこと。
+
+## Shared theme toggle
+
+`jp-go-dds.theme-toggle` is the common lambda yin-yang control used by Kotoba and Kotobase. It is a component namespace in this design-system repository, not a separate repository.
+
+```clojure
+(require '[jp-go-dds.theme-toggle :as theme])
+;; page options: :dark? true, :app-css theme/css, :head [[:script theme/script]]
+;; header content: theme/control
+```
+
+The script runs before paint, follows OS appearance until explicitly selected, and stores the selection per origin. Keep one control per page. Native button keyboard behavior, switch state, reduced motion and Japanese/English labels are included. Without JavaScript the button stays hidden and the page follows the OS.
