@@ -411,3 +411,15 @@ DADS の semantic token(`--color-semantic-success-2` / `-warning-yellow-2` /
 ```
 
 The script runs before paint, follows OS appearance until explicitly selected, and stores the selection per origin. Keep one control per page. Native button keyboard behavior, switch state, reduced motion and Japanese/English labels are included. Without JavaScript the button stays hidden and the page follows the OS.
+
+### Compact language selection
+
+`language-selector` shows the current native language name and adds search when
+there are more than six choices. Options may provide `:aliases` (for example an
+English language name), and hosts may localize `:search-label` and `:empty-label`.
+Load `jp-go-dds.behavior/language-selector-script` once. JVM `css-for` includes
+its layout when requesting `:language-selector`; resource-reading hosts must
+append `jp-go-dds.behavior/language-selector-css` after the component sheets.
+Search matches native names, aliases and codes without accent sensitivity.
+Escape returns focus to the opener; arrows select visible choices. The popup
+is scrollable and is positioned within the viewport when opened.

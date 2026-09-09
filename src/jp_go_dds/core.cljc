@@ -319,15 +319,16 @@
   - :text-weight normal|bold（既定 normal）
   - :attrs       root への追加属性
 
-  オープナー表記はDADS規定により翻訳せず、常に `Language`。各言語名は
+  オープナーは現在の言語名。:opener-label で表記を指定できる。7言語以上では検索欄を表示する。各言語名は
   その言語自身の表記を渡す。開閉・Escape・矢印キーの挙動はホスト側が
   data-language-selector-* hookへ一度だけ委譲して実装する。"
-  [{:keys [id-prefix current languages size style text-weight attrs]
+  [{:keys [id-prefix current languages size style text-weight attrs opener-label search-label empty-label]
     :or {id-prefix "language-selector" size "sm" style "text"
-         text-weight "normal"}}]
+         text-weight "normal" search-label "Search languages" empty-label "No matching languages"}}]
   (let [opener-id (str id-prefix "-opener")
         popup-id (str id-prefix "-popup")
-        current (some-> current name)]
+        current (some-> current name)
+        current-label (or opener-label (:label (first (filter #(= current (name (:code %))) languages))) "Language")]
     [:div (merge {:class "dads-language-selector"
                   :data-language-selector true}
                  attrs)
@@ -336,6 +337,7 @@
                 :class "dads-menu-list-box__opener"
                 :type "button"
                 :data-language-selector-opener true
+                :aria-label (str "Language: " current-label)
                 :aria-controls popup-id
                 :aria-expanded "false"
                 :data-size size
@@ -345,22 +347,28 @@
               :width 24 :height 24 :viewBox "0 0 24 24"
               :fill "currentcolor" :aria-hidden "true"}
         [:path {:d "M12 21.5A9.5 9.5 0 0 1 2.5 12c0-5.2 4.3-9.5 9.5-9.5s9.6 4.3 9.5 9.5c0 5.2-4.3 9.5-9.5 9.5Zm0-1.5c1-1.3 1.7-2.8 2.1-4.3H10c.4 1.5 1 3 2.1 4.3Zm-2-.3c-.8-1.2-1.4-2.6-1.7-4H5c1 2 3 3.5 5.2 4Zm4 0c2.2-.5 4-2 5-4h-3.3c-.4 1.4-1 2.8-1.8 4Zm-9.7-5.5H8a13 13 0 0 1 0-4.4H4.3a8 8 0 0 0 0 4.4Zm5.2 0h5c.2-1.5.2-3 0-4.4h-5c-.2 1.5-.2 3 0 4.4Zm6.5 0h3.7a8 8 0 0 0 0-4.4H16c.2 1.5.2 3 0 4.4Zm-.3-5.9H19c-1-2-3-3.5-5.2-4 .8 1.2 1.4 2.6 1.8 4Zm-5.8 0H14A12 12 0 0 0 12 4a12 12 0 0 0-2.1 4.3Zm-5 0h3.4c.4-1.4 1-2.8 1.8-4-2.3.5-4.1 2-5.2 4Z"}]]
-       "Language"
+       [:span {:data-language-selector-current true} current-label]
        [:svg {:class "dads-menu-list-box__opener-arrow"
               :width 16 :height 16 :viewBox "0 0 24 24"
               :fill "currentcolor" :aria-hidden "true"}
         [:path {:d "m20.5 6.6-8 8-8-8L3.1 8l9.4 9.4L21.9 8l-1.4-1.4Z"}]]]
       [:div {:id popup-id :class "dads-menu-list-box__popup"
              :data-language-selector-popup true :hidden true}
+       (when (> (count languages) 6)
+         [:input {:type "search" :class "dads-input-text dads-language-selector__search"
+                  :data-language-selector-search true :aria-label search-label
+                  :placeholder search-label :autocomplete "off" :spellcheck "false"}])
+       [:p {:data-language-selector-empty true :role "status" :hidden true} empty-label]
        (into
         [:ul {:class "dads-menu-list" :data-language-selector-menu true}]
         (map
-         (fn [{:keys [code label href]}]
+         (fn [{:keys [code label href aliases]}]
            (let [code (name code)
                  selected? (= current code)]
              [:li
               [:a (cond-> {:class "dads-menu-list__item"
                            :data-language-selector-item true
+                           :data-language-selector-keywords (str code " " label " " aliases)
                            :href href :lang code :hreflang code
                            :data-type "box" :data-size "regular"}
                     selected? (assoc :data-current true
@@ -370,7 +378,7 @@
                       :width 24 :height 24 :viewBox "0 0 24 24"
                       :fill "currentcolor" :aria-hidden "true"}
                 [:path {:d "m9.5 18-5.7-5.7 1.5-1.4 4.2 4.3L18.7 6l1.4 1.4L9.5 18Z"}]]
-               [:span {:class "dads-menu-list__label"} label]]]))
+               [:bdi {:class "dads-menu-list__label"} label]]]))
          languages))]]]))
 
 (defn table

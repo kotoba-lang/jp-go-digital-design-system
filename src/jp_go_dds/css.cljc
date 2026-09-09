@@ -20,6 +20,7 @@
   nbb など resource が使えない実行系からは `component-path` でパスだけ取り、
   読み込みは呼び出し側が行う(このライブラリは I/O を持たない純関数を保つ方針)。"
   (:require [kotoba.lang.text :as str]
+            [jp-go-dds.behavior :as behavior]
             ;; JVM だけ（`jp-go-dds.kotoba-oracle` の docstring 参照）。
             #?@(:clj [[clojure.java.io :as io]
                       [jp-go-dds.kotoba-oracle :as oracle]])))
@@ -97,7 +98,8 @@
         (str/join "\n"
                   (cond-> []
                     global? (conj (slurp-resource global-path))
-                    :always (into (map (comp slurp-resource component-path) extras))))))))
+                    :always (into (map (comp slurp-resource component-path) extras))
+                    (some #{:language-selector} extras) (conj behavior/language-selector-css)))))))
 
 #?(:clj
    (defn all-css
