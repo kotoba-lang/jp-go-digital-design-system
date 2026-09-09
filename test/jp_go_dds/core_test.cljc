@@ -206,8 +206,8 @@
       (is (str/includes? markup "aria-controls=\"header-language-popup\""))
       (is (str/includes? markup "aria-expanded=\"false\""))
       (is (str/includes? markup "data-language-selector-opener")))
-    (testing "オープナーは常にLanguage、言語名は自称"
-      (is (str/includes? markup ">Language<"))
+    (testing "オープナーは現在言語、言語名は自称"
+      (is (str/includes? markup "Language: 日本語"))
       (is (str/includes? markup "lang=\"ja\""))
       (is (str/includes? markup "hreflang=\"ja\""))
       (is (str/includes? markup ">日本語<"))
