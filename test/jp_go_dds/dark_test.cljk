@@ -21,9 +21,9 @@
 
 (def dark-source
   "`dark.cljc` 自身。色の literal が書かれていないことを検査するため。"
-  #?(:clj (slurp "src/jp_go_dds/dark.cljc")
+  #?(:clj (slurp "src/jp_go_dds/dark.cljk")
      :cljs (let [fs (js/require "node:fs")]
-             (str (.readFileSync fs "src/jp_go_dds/dark.cljc")))))
+             (str (.readFileSync fs "src/jp_go_dds/dark.cljk")))))
 
 ;; ── WCAG 2.x relative luminance / contrast ──────────────────────────────────
 

@@ -79,7 +79,7 @@
        (slurp r)
        (throw (ex-info (str "jp-go-dds: resource が無い: " p
                             " —— 上流に存在しない component 名か、"
-                            "scripts/vendor.cljs の再実行が要る")
+                            "scripts/vendor.cljk の再実行が要る")
                        {:path p})))))
 
 #?(:clj
