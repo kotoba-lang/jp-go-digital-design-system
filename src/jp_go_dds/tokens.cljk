@@ -50,7 +50,7 @@
   "`--hig-*` 契約 → DADS primitive の対応表。
 
   値は**必ず `var(--dads-primitive)` 参照**にする（raw hex を書かない）。
-  こうしておくと上流 CSS を `scripts/vendor.cljs` で再 vendor したときに
+  こうしておくと上流 CSS を `scripts/vendor.cljk` で再 vendor したときに
   palette の更新が自動で伝わる — ここに hex を焼くと vendor 更新から
   取り残される。
 
@@ -292,7 +292,7 @@
   含む 72KB 全部を各ページに焼くのは無駄が大きい。実測でこのブロックは 8.6KB。
 
   **切り出しであって写しではない**のが要点。ここに token を書き写すと
-  `scripts/vendor.cljs` の再 vendor から取り残される（このファイル冒頭が
+  `scripts/vendor.cljk` の再 vendor から取り残される（このファイル冒頭が
   raw hex を禁じているのと同じ理由）。引数で CSS 文字列を受けるのは cljs/nbb
   からも使えるようにするため。"
   [dds-css]

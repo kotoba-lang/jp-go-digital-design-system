@@ -6,7 +6,7 @@ ADR-2607141915（com-junkawasaki/root）。
 
 - markup / class 名（`dads-*`）は上流の HTML 例に忠実。CSS は
   `resources/jp_go_dds/dds.css` に vendor（先頭コメントに上流 commit と MIT 表記。
-  `nbb scripts/vendor.cljs <上流 clone>` で再生成 — 手編集禁止）。
+  `nbb scripts/vendor.cljk <上流 clone>` で再生成 — 手編集禁止）。
 - **既定は light 固定**（上流に dark palette は無い）。`page` に `:dark? true`
   を渡すと `jp-go-dds.dark` の反転層が入り、`prefers-color-scheme` と
   `[data-theme]` の両方に対応する。**上流の dark ではなく、こちらの拡張**
@@ -101,7 +101,7 @@ token 正規化・breakout guard・除外・content identity は **Kotoba の
 **consumer API は一切変えていない** —— アプリは今までどおり
 `jp-go-dds.tokens/skin-css` を使う。
 
-gate は `test/jp_go_dds/kotoba_document_parity_test.clj`（JVM のみ。
+gate は `test/jp_go_dds/kotoba_document_parity_test.cljk`（JVM のみ。
 `kotoba-lang/compiler` は `:test` alias の**テスト専用**依存で、
 ライブラリ本体は実行時に依存しない）:
 
@@ -145,10 +145,10 @@ gate は `test/jp_go_dds/kotoba_document_parity_test.clj`（JVM のみ。
 結果を EDN にした:
 
 ```bash
-nbb --classpath "src:../css/src:../html/src" scripts/palette.cljs
+nbb --classpath "src:../css/src:../html/src" scripts/palette.cljk
 ```
 
-`scripts/vendor.cljs` はこれを最後に必ず呼ぶ（再 vendor して EDN を作り忘れると
+`scripts/vendor.cljk` はこれを最後に必ず呼ぶ（再 vendor して EDN を作り忘れると
 dark が**前の上流の palette を描き続ける**）。生成物なので手編集禁止。
 中身は `:literals`(156) / `:ramps`(12) / `:all`(177) と source の sha256。
 
@@ -371,7 +371,7 @@ index で鏡映するので、grey の `420` `536` のような半端な段に�
 ## テスト
 
 ```bash
-nbb --classpath "src:test:../html/src" test/run_tests.cljs
+nbb --classpath "src:test:../html/src" test/run_tests.cljk
 clojure -X:test   # JVM compat
 ```
 

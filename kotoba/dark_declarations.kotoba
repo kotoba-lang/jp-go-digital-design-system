@@ -38,7 +38,7 @@
 ;;
 ;; ## What this module can own that the previous slice could not
 ;;
-;; It reads `resources/jp_go_dds/palette.edn`, which `scripts/palette.cljs`
+;; It reads `resources/jp_go_dds/palette.edn`, which `scripts/palette.cljk`
 ;; writes at vendor time from the same scan `jp-go-dds.dark` performs. That is
 ;; the design change the last slice named as its blocker: recovering structure
 ;; from CSS text with a regex cannot move to Kotoba, but once the recovery has

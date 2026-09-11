@@ -6,7 +6,7 @@
   property でなければならない。存在しない変数を参照しても CSS は**エラーを
   出さず、その宣言だけが黙って無効になる** — つまり `--hig-color-tint` が
   何色にもならず、それを使っている SVG が不可視になる、という形でしか
-  表面化しない。上流 CSS を `scripts/vendor.cljs` で更新して primitive 名が
+  表面化しない。上流 CSS を `scripts/vendor.cljk` で更新して primitive 名が
   変わったときに、ここで落ちてほしい。"
   (:require #?(:clj [clojure.test :refer [deftest is testing]]
                :cljs [cljs.test :refer-macros [deftest is testing]])

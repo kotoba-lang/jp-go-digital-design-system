@@ -4,7 +4,7 @@
 
   Slice 2 recorded that the CSS scan could not move to Kotoba, because
   recovering structure from text with a regex is a design change before it is a
-  migration. This slice makes that change: `scripts/palette.cljs` runs the scan
+  migration. This slice makes that change: `scripts/palette.cljk` runs the scan
   once at vendor time and writes `resources/jp_go_dds/palette.edn`, and
   `kotoba/dark_declarations.kotoba` decides over the result.
 
@@ -73,7 +73,7 @@
 ;; --- 1. the generated data is not stale -----------------------------------
 
 (deftest palette-edn-agrees-with-the-live-scan
-  (testing "regenerate with: nbb --classpath \"src:../css/src:../html/src\" scripts/palette.cljs"
+  (testing "regenerate with: nbb --classpath \"src:../css/src:../html/src\" scripts/palette.cljk"
     (is (= 1 (:jp-go-dds.palette/version palette)))
     (is (= (into (sorted-map) literals) (:literals palette))
         "palette.edn literals drifted from the vendored CSS")

@@ -89,7 +89,7 @@
 ;;
 ;; The right fix is the one slice 3 already made for the palette: recovering
 ;; structure from CSS text is a design change before it is a migration, so let
-;; `scripts/vendor.cljs` record the block at vendor time and let Kotoba decide
+;; `scripts/vendor.cljk` record the block at vendor time and let Kotoba decide
 ;; over the result. Until then the scan stays where it can afford to run.
 ;;
 ;; `tokens/a11y-css` is not here for a different reason: rendering it needs the

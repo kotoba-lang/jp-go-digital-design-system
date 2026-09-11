@@ -46,7 +46,7 @@
 
   そこで vendored CSS の `:root` から light の実値を**抽出**して
   `--dds-light-*` という私設の名前に退避し、dark 側はそれだけを参照する。
-  抽出であって書き写しではない —— `scripts/vendor.cljs` が palette を更新すれば
+  抽出であって書き写しではない —— `scripts/vendor.cljk` が palette を更新すれば
   ここも自動で追従する（`jp-go-dds.tokens` が raw hex を禁じているのと同じ理由で、
   このファイルにも色の literal は 1 つも無い）。
 
