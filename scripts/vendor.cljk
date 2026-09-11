@@ -1,5 +1,5 @@
 ;; 上流 CSS の再 vendor(nbb)。digital-go-jp/design-system-example-components-html。
-;; usage(repo root から): nbb scripts/vendor.cljk <path-to-upstream-clone>
+;; usage(repo root から): kbb --backend sci scripts/vendor.cljk <path-to-upstream-clone>
 ;; 生成物: resources/jp_go_dds/dds.css(冒頭に upstream commit + MIT 表記) + LICENSE-upstream
 
 (require '["fs" :as fs]
@@ -20,7 +20,7 @@
 
 (let [[upstream] *command-line-args*]
   (when-not (and upstream (fs/existsSync upstream))
-    (println "usage: nbb scripts/vendor.cljk <path-to-upstream-clone>")
+    (println "usage: kbb --backend sci scripts/vendor.cljk <path-to-upstream-clone>")
     (js/process.exit 2))
   (let [sha (-> (cp/execSync "git rev-parse HEAD" #js {:cwd upstream}) .toString .trim)
         header (str "/* jp-go-digital-design-system — vendored CSS\n"
@@ -72,7 +72,7 @@
     ;; そのためライブラリを classpath に載せる必要があり、この script 自身は
     ;; classpath なしで起動されるので、ここで明示して起動し直す。
     (println (-> (cp/execSync
-                  (str "nbb --classpath \"src:../css/src:../html/src\" "
+                  (str "kbb --backend sci --classpath \"src:../css/src:../html/src\" "
                        "scripts/palette.cljk"))
                  .toString .trim))
 

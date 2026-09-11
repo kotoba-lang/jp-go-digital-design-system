@@ -76,7 +76,7 @@
       (let [shipped (edn/read-string (slurp (io/resource (oracle/resource-path id))))
             fresh (:kir (compiler/compile-source (slurp (io/file source)) gen/target))]
         (is (= (renumber-gensyms fresh) (renumber-gensyms shipped))
-            (str "shipped KIR for " id " is stale — run `clojure -M:test:gen`"))))))
+            (str "shipped KIR for " id " is stale — run `kbb -M:test:gen`"))))))
 
 (deftest the-gensym-normalizer-is-not-masking-anything-today
   ;; If this ever fails, the drift gate above stopped comparing raw structure

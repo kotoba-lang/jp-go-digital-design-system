@@ -73,7 +73,7 @@
 ;; --- 1. the generated data is not stale -----------------------------------
 
 (deftest palette-edn-agrees-with-the-live-scan
-  (testing "regenerate with: nbb --classpath \"src:../css/src:../html/src\" scripts/palette.cljk"
+  (testing "regenerate with: kbb --backend sci --classpath \"src:../css/src:../html/src\" scripts/palette.cljk"
     (is (= 1 (:jp-go-dds.palette/version palette)))
     (is (= (into (sorted-map) literals) (:literals palette))
         "palette.edn literals drifted from the vendored CSS")
