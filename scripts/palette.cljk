@@ -1,6 +1,6 @@
 ;; vendored dds.css の :root を読み、palette を **宣言データ**として書き出す(nbb)。
 ;; usage(repo root から):
-;;   nbb --classpath "src:../css/src:../html/src" scripts/palette.cljk
+;;   kbb --backend sci --classpath "src:../css/src:../html/src" scripts/palette.cljk
 ;; 生成物: resources/jp_go_dds/palette.edn(手編集禁止 — 再生成する)
 ;;
 ;; ## なぜ生成物にするのか
@@ -46,7 +46,7 @@
   (fs/writeFileSync
    out-path
    (str ";; 生成物 — 手編集禁止。再生成:\n"
-        ";;   nbb --classpath \"src:../css/src:../html/src\" scripts/palette.cljk\n"
+        ";;   kbb --backend sci --classpath \"src:../css/src:../html/src\" scripts/palette.cljk\n"
         ";; vendored dds.css の :root から復元した palette。:literals は literal 値を\n"
         ";; 持つ --color-*、:all は var() 委譲も含む全件、:ramps は段の実在集合。\n"
         (pr-str payload) "\n"))

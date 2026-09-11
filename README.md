@@ -6,7 +6,7 @@ ADR-2607141915（com-junkawasaki/root）。
 
 - markup / class 名（`dads-*`）は上流の HTML 例に忠実。CSS は
   `resources/jp_go_dds/dds.css` に vendor（先頭コメントに上流 commit と MIT 表記。
-  `nbb scripts/vendor.cljk <上流 clone>` で再生成 — 手編集禁止）。
+  `kbb --backend sci scripts/vendor.cljk <上流 clone>` で再生成 — 手編集禁止）。
 - **既定は light 固定**（上流に dark palette は無い）。`page` に `:dark? true`
   を渡すと `jp-go-dds.dark` の反転層が入り、`prefers-color-scheme` と
   `[data-theme]` の両方に対応する。**上流の dark ではなく、こちらの拡張**
@@ -145,7 +145,7 @@ gate は `test/jp_go_dds/kotoba_document_parity_test.cljk`（JVM のみ。
 結果を EDN にした:
 
 ```bash
-nbb --classpath "src:../css/src:../html/src" scripts/palette.cljk
+kbb --backend sci --classpath "src:../css/src:../html/src" scripts/palette.cljk
 ```
 
 `scripts/vendor.cljk` はこれを最後に必ず呼ぶ（再 vendor して EDN を作り忘れると
@@ -329,7 +329,7 @@ index で鏡映するので、grey の `420` `536` のような半端な段に�
 唯一の例外が `white ↔ black` で、鏡映すると地が純黒になり面がそれ以上下に
 行けなくなるため、地は grey の最暗段に落とす。上流から導けないこちらの判断。
 
-### 実測 contrast（`clojure -M:test` が毎回検算する）
+### 実測 contrast（`kbb -M:test` が毎回検算する）
 
 地 `#1a1a1a` に対して:
 
@@ -371,8 +371,8 @@ index で鏡映するので、grey の `420` `536` のような半端な段に�
 ## テスト
 
 ```bash
-nbb --classpath "src:test:../html/src" test/run_tests.cljk
-clojure -X:test   # JVM compat
+kbb --backend sci --classpath "src:test:../html/src" test/run_tests.cljk
+kbb -X:test   # JVM compat
 ```
 
 ## 互換スキン (`jp-go-dds.skin`)

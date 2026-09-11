@@ -1,7 +1,7 @@
 (ns jp-go-dds.kotoba-oracle-gen
   "Regenerate the shipped KIR from `kotoba/*.kotoba`.
 
-      clojure -M:test:gen
+      kbb -M:test:gen
 
   Runs under :test because the compiler lives there and must not reach the
   library -- a consumer needs to EXECUTE KIR, not to produce it. What this

@@ -58,7 +58,7 @@
   ;; Regenerate the shipped decision-core KIR. Combine with :test, which is
   ;; where the compiler lives:
   ;;
-  ;;     clojure -M:test:gen
+  ;;     kbb -M:test:gen
   ;;
   ;; The generator namespace lives under test/ for the same reason: putting it
   ;; in src/ would put the compiler back on a consumer's classpath.
