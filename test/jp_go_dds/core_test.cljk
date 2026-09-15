@@ -245,3 +245,27 @@
     ;; card は example CSS のみのパターンなので一覧に出ない
     (is (not (contains? (set dds-components) :card)))
     (is (contains? (set dds-components) :select))))
+
+(def ^:private vendored-dds
+  "vendor 済み dds.css（dark_test と同じ読み方）。"
+  #?(:clj (slurp "resources/jp_go_dds/dds.css")
+     :cljs (let [fs (js/require "node:fs")]
+             (str (.readFileSync fs "resources/jp_go_dds/dds.css")))))
+
+(deftest page-dark-with-an-external-stylesheet
+  ;; a document that ships its CSS as a separate file keeps :css "" and names
+  ;; the DADS css as :dark-source — the meta pair resolves from it and the
+  ;; inversion layer is NOT inlined (the caller puts dark-css in its own sheet)
+  (let [p (page/->page {:title "t" :css "" :dark? true :dark-source vendored-dds :dark-inline? false} [:p "x"])]
+    (testing "color-scheme と theme-color の対が出る"
+      (is (str/includes? p "name=\"color-scheme\" content=\"light dark\""))
+      (is (re-find #"content=\"#[0-9a-fA-F]{6}\" media=\"\(prefers-color-scheme: dark\)\"" p)
+          "dark の theme-color は :dark-source から解決した literal"))
+    (testing "反転層は inline されない"
+      (is (not (str/includes? p "data-theme=\"dark\"")))))
+  (let [p (page/->page {:title "t" :css "" :dark? true :dark-source vendored-dds} [:p "x"])]
+    (testing "既定では反転層を inline する"
+      (is (str/includes? p "data-theme=\"dark\""))))
+  (testing ":dark-source 無しの外部 stylesheet 文書は、:css \"\" から dark を導けないので拒否する（黙って空の dark を出さない）"
+    (is (thrown? #?(:clj Exception :cljs :default)
+                 (page/->page {:title "t" :css "" :dark? true} [:p "x"])))))
