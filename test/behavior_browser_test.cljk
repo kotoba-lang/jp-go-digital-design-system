@@ -65,6 +65,10 @@
           (dds/select-listbox {:id "sz" :name "sz" :label "サイズ"} [{:value "s" :label "小"} {:value "m" :label "中"} {:value "l" :label "大"}])]
          [:section {:id "s-slider"}
           (dds/slider {:id "vol" :name "vol" :label "音量" :value 30 :step 5 :output? true})]
+         [:section {:id "s-table"}
+          (dds/table {:id "tbl" :sortable? true :filter {:id "tbl-filter" :label "絞る"}
+                      :headers ["名前" "数量"]
+                      :rows [["バナナ" {:text "10" :sort-value 10}] ["りんご" {:text "9" :sort-value 9}] ["みかん" {:text "100" :sort-value 100}]]})]
          [:div {:style "block-size:900px"}]
          [:section {:id "s-bottom"}
           (dds/menu-list-box {:id "bottom-menu" :label "下端"} [{:label "一" :attrs {:id "bm-one"}} {:label "二"} {:label "三"} {:label "四"} {:label "五"} {:label "六"}])]
@@ -203,6 +207,22 @@ const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://x').p
   await page.mouse.click(tr.x,tr.y);
   const mid=await page.evaluate(()=>Number(document.getElementById('vol-thumb').getAttribute('aria-valuenow')));
   ok(mid>=40&&mid<=60,'click at the middle of the track lands near 50, got '+mid);
+  // --- table: a header button sorts ascending then descending (numeric on data-sort-value), aria-sort follows; the filter hides rows and counts
+  const col=(i)=>page.evaluate((i)=>[...document.querySelectorAll('#tbl tbody tr')].filter(r=>!r.hidden).map(r=>r.children[i].textContent.trim()),i);
+  ok((await col(1)).join(',')==='10,9,100','table starts in document order');
+  ok(await page.evaluate(()=>document.querySelector('#tbl [data-table-count]').textContent==='3 / 3'),'count shows 3 / 3 at init');
+  await page.click('#tbl thead th:nth-child(2) button');
+  ok((await col(1)).join(',')==='9,10,100','ascending by number, not by text (100 after 10)');
+  ok(await page.evaluate(()=>document.querySelector('#tbl thead th:nth-child(2)').getAttribute('aria-sort')==='ascending'&&document.querySelector('#tbl thead th:nth-child(1)').getAttribute('aria-sort')==='none'),'aria-sort on the active column only');
+  await page.click('#tbl thead th:nth-child(2) button');
+  ok((await col(1)).join(',')==='100,10,9','second click descends');
+  await page.click('#tbl thead th:nth-child(1) button');
+  ok((await col(0)).join(',')==='バナナ,みかん,りんご','text column sorts ascending by locale compare (kana order)');
+  await page.fill('#tbl-filter','りん');
+  ok((await col(0)).join(',')==='りんご','filter hides the rows that do not contain the text');
+  ok(await page.evaluate(()=>document.querySelector('#tbl [data-table-count]').textContent==='1 / 3'),'count shows 1 / 3');
+  await page.fill('#tbl-filter','');
+  ok((await col(0)).length===3,'clearing the filter shows every row again');
   // --- placement: a menu at the bottom of the viewport flips up (data-placement=up) and stays inside the viewport
   await page.evaluate(()=>document.getElementById('s-bottom').scrollIntoView({block:'end'}));
   await page.evaluate(()=>window.scrollBy(0,-20));

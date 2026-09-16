@@ -76,6 +76,17 @@
                                (percent, the track fill), [data-slider-
                                value], input / change events
 
+    data-behavior=\"table\"       a .dads-table root: th[aria-sort] > button
+                               sorts the tbody by that column (text, or
+                               data-sort-value; numeric when both sides
+                               parse), toggling ascending / descending,
+                               aria-sort on the active header only;
+                               [data-table-filter] (an input) hides rows
+                               that do not contain the text, [data-table-
+                               count] shows visible / total. No
+                               virtualisation — a DADS table is a page of
+                               rows, not ten thousand
+
   Placement is collision-aware without a library (2026-09-16): every
   floating popup (menu, combobox, popover, select) is placed on open —
   flipped above its anchor when it would leave the viewport below and
@@ -129,7 +140,9 @@
                  :needs ["[role=combobox][aria-haspopup=listbox][aria-expanded][aria-controls]"
                          "[role=listbox][data-chrome=float][hidden]" "[role=option][data-value]"]}
    "slider"     {:root "[data-behavior=slider]"
-                 :needs ["[role=slider][aria-valuemin][aria-valuemax][aria-valuenow]"]}})
+                 :needs ["[role=slider][aria-valuemin][aria-valuemax][aria-valuenow]"]}
+   "table"      {:root "[data-behavior=table]"
+                 :needs ["table" "th[aria-sort] button, [data-table-filter]"]}})
 
 (def script
   "The behavior runtime — see the namespace docstring. Ship as a file."
@@ -272,8 +285,18 @@ const slFromPointer=(root,e)=>{const {thumb,track}=slParts(root);const r=track.g
 doc.addEventListener('pointerdown',e=>{const root=e.target.closest('[data-behavior=\"slider\"]');if(!root||e.button!==0)return;const {thumb,track}=slParts(root);if(!thumb||(!track.contains(e.target)&&e.target!==thumb))return;e.preventDefault();slSet(root,slFromPointer(root,e),false);thumb.focus({preventScroll:true});const move=ev=>slSet(root,slFromPointer(root,ev),false);const up=ev=>{doc.removeEventListener('pointermove',move);doc.removeEventListener('pointerup',up);doc.removeEventListener('pointercancel',up);slSet(root,slFromPointer(root,ev),true);};doc.addEventListener('pointermove',move);doc.addEventListener('pointerup',up);doc.addEventListener('pointercancel',up);});
 doc.addEventListener('keydown',e=>{const thumb=e.target.closest('[role=\"slider\"]');const root=thumb&&thumb.closest('[data-behavior=\"slider\"]');if(!root)return;const min=slNum(thumb,'aria-valuemin',0),max=slNum(thumb,'aria-valuemax',100),step=Number(root.dataset.step||1)||1,cur=slNum(thumb,'aria-valuenow',min);let v=null;if(e.key==='ArrowRight'||e.key==='ArrowUp')v=cur+step;else if(e.key==='ArrowLeft'||e.key==='ArrowDown')v=cur-step;else if(e.key==='PageUp')v=cur+step*10;else if(e.key==='PageDown')v=cur-step*10;else if(e.key==='Home')v=min;else if(e.key==='End')v=max;if(v!==null){e.preventDefault();slSet(root,v,true);}});
 
+/* ---- table: [data-behavior=\"table\"] > table with th[aria-sort] > button (sort by that column, ascending then descending; data-sort-value overrides the cell text; numeric when both parse) and an optional [data-table-filter] input (rows that do not contain the text are hidden; [data-table-count] shows visible / total) */
+const tblParts=root=>({table:root.querySelector('table'),body:root.querySelector('tbody'),filter:root.querySelector('[data-table-filter]'),count:root.querySelector('[data-table-count]')});
+const tblRows=root=>{const {body}=tblParts(root);return body?Array.from(body.querySelectorAll(':scope > tr')):[];};
+const tblKey=(row,i)=>{const cell=row.children[i];if(!cell)return '';return cell.dataset.sortValue!=null?cell.dataset.sortValue:cell.textContent.trim();};
+const tblSort=(root,th,dir)=>{const {table,body}=tblParts(root);if(!table||!body)return;const ths=Array.from(table.querySelectorAll('thead th'));const i=ths.indexOf(th);if(i<0)return;const rows=tblRows(root);const nums=rows.every(r=>tblKey(r,i)===''||!isNaN(parseFloat(tblKey(r,i))));const cmp=(a,b)=>{const ka=tblKey(a,i),kb=tblKey(b,i);const c=nums?(parseFloat(ka)||0)-(parseFloat(kb)||0):ka.localeCompare(kb,undefined,{numeric:true,sensitivity:'base'});return dir==='descending'?-c:c;};rows.map((r,n)=>[r,n]).sort((a,b)=>cmp(a[0],b[0])||a[1]-b[1]).forEach(([r])=>body.appendChild(r));ths.forEach(t=>{if(t.hasAttribute('aria-sort'))t.setAttribute('aria-sort',t===th?dir:'none');});root.dispatchEvent(new CustomEvent('jp-go-dds:table-sort',{bubbles:true,detail:{column:i,direction:dir}}));};
+const tblFilter=root=>{const {filter,count}=tblParts(root);const term=normalize(filter?filter.value:'');const rows=tblRows(root);let n=0;rows.forEach(r=>{const show=!term||normalize(r.textContent).includes(term);r.hidden=!show;if(show)n++;});if(count)count.textContent=n+' / '+rows.length;root.dispatchEvent(new CustomEvent('jp-go-dds:table-filter',{bubbles:true,detail:{visible:n,total:rows.length}}));};
+doc.addEventListener('click',e=>{const b=e.target.closest('th[aria-sort] button');const root=b&&b.closest('[data-behavior=\"table\"]');if(!root)return;e.preventDefault();const th=b.closest('th');const cur=th.getAttribute('aria-sort');tblSort(root,th,cur==='ascending'?'descending':'ascending');});
+doc.addEventListener('input',e=>{const f=e.target.closest('[data-table-filter]');const root=f&&f.closest('[data-behavior=\"table\"]');if(root)tblFilter(root);});
+const initTable=root=>{if(root.__jpTable)return;root.__jpTable=true;const {count}=tblParts(root);if(count)tblFilter(root);};
+
 /* ---- init / hydrate */
-const hydrate=(root)=>{root=root||doc;root.querySelectorAll('[data-behavior=\"tabs\"]').forEach(initTabs);root.querySelectorAll('[data-behavior=\"radiogroup\"]').forEach(initRadiogroup);root.querySelectorAll('[data-behavior=\"toast\"] .dds-ext-toast').forEach(armToast);root.querySelectorAll('[data-behavior=\"tooltip\"]').forEach(armTooltip);root.querySelectorAll('[data-behavior=\"slider\"]').forEach(initSlider);if(root!==doc&&root.matches){if(root.matches('[data-behavior=\"tabs\"]'))initTabs(root);if(root.matches('[data-behavior=\"radiogroup\"]'))initRadiogroup(root);if(root.matches('[data-behavior=\"tooltip\"]'))armTooltip(root);if(root.matches('[data-behavior=\"slider\"]'))initSlider(root);}return root;};
+const hydrate=(root)=>{root=root||doc;root.querySelectorAll('[data-behavior=\"tabs\"]').forEach(initTabs);root.querySelectorAll('[data-behavior=\"radiogroup\"]').forEach(initRadiogroup);root.querySelectorAll('[data-behavior=\"toast\"] .dds-ext-toast').forEach(armToast);root.querySelectorAll('[data-behavior=\"tooltip\"]').forEach(armTooltip);root.querySelectorAll('[data-behavior=\"slider\"]').forEach(initSlider);root.querySelectorAll('[data-behavior=\"table\"]').forEach(initTable);if(root!==doc&&root.matches){if(root.matches('[data-behavior=\"tabs\"]'))initTabs(root);if(root.matches('[data-behavior=\"radiogroup\"]'))initRadiogroup(root);if(root.matches('[data-behavior=\"tooltip\"]'))armTooltip(root);if(root.matches('[data-behavior=\"slider\"]'))initSlider(root);if(root.matches('[data-behavior=\"table\"]'))initTable(root);}return root;};
 const api=Object.freeze({hydrate,toast,openDialog,closeDialog,openMenu,closeMenu,selectTab,openPopover,closePopover,place,version:'0.2.0'});
 globalThis.jpGoDds=Object.assign(globalThis.jpGoDds||{},{behavior:api});
 if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',()=>hydrate());else hydrate();
@@ -305,6 +328,13 @@ if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',()=>hydrat
 [data-slider-track]::before{content:'';position:absolute;inset-block:0;inset-inline-start:0;inline-size:var(--slider-value);border-radius:inherit;background:var(--hig-color-tint,var(--color-key-900))}
 [data-behavior=slider] [role=slider]{position:absolute;top:50%;inset-inline-start:var(--slider-value);translate:-50% -50%;inline-size:1.5rem;block-size:1.5rem;border-radius:50%;box-sizing:border-box;background:var(--hig-color-system-background,var(--color-neutral-white));border:2px solid var(--hig-color-tint,var(--color-key-900));cursor:grab}
 [data-behavior=slider] [role=slider]:focus-visible{outline:2px solid var(--hig-color-tint,var(--color-key-900));outline-offset:2px}
+[data-behavior=table] th[aria-sort] button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:center;gap:var(--hig-spacing-1,calc(4 / 16 * 1rem));min-block-size:2.75rem}
+[data-behavior=table] th[aria-sort] button::after{content:'';inline-size:.5em;block-size:.5em;border-inline-end:2px solid currentcolor;border-block-end:2px solid currentcolor;opacity:.35;rotate:45deg;translate:0 -.15em}
+[data-behavior=table] th[aria-sort=ascending] button::after{opacity:1;rotate:-135deg;translate:0 .15em}
+[data-behavior=table] th[aria-sort=descending] button::after{opacity:1}
+[data-behavior=table] th[aria-sort] button:focus-visible{outline:2px solid var(--hig-color-tint,var(--color-key-900));outline-offset:2px}
+[data-behavior=table] [data-table-toolbar]{display:flex;align-items:center;gap:var(--hig-spacing-3,calc(12 / 16 * 1rem));margin-block-end:var(--hig-spacing-3,calc(12 / 16 * 1rem))}
+[data-behavior=table] [data-table-count]{margin-inline-start:auto;color:var(--hig-color-secondary-label,var(--color-neutral-solid-gray-600));font-size:var(--hig-text-footnote-font-size,calc(13 / 16 * 1rem))}
 dialog[data-behavior=dialog]{z-index:var(--hig-z-modal,60)}
 [data-behavior=toast]{position:fixed;inset-inline:0;inset-block-end:calc(var(--hig-spacing-4,1rem) + env(safe-area-inset-bottom,0px));z-index:var(--hig-z-toast,80);display:grid;justify-items:center;gap:var(--hig-spacing-2,calc(8 / 16 * 1rem));margin:0;padding:0 var(--hig-spacing-4,1rem);pointer-events:none}
 .dds-ext-toast{pointer-events:auto;display:flex;align-items:center;gap:var(--hig-spacing-3,calc(12 / 16 * 1rem));max-inline-size:min(36rem,100%);min-block-size:2.75rem;padding:var(--hig-spacing-2,calc(8 / 16 * 1rem)) var(--hig-spacing-2,calc(8 / 16 * 1rem)) var(--hig-spacing-2,calc(8 / 16 * 1rem)) var(--hig-spacing-4,1rem);border-radius:var(--hig-radius-sm,calc(8 / 16 * 1rem));background:var(--hig-color-label,var(--color-neutral-solid-gray-800));color:var(--hig-color-system-background,var(--color-neutral-white));box-shadow:0 8px 24px rgb(0 0 0 / 24%);opacity:1;transition:opacity var(--hig-motion-reveal,180ms) ease-out,translate var(--hig-motion-reveal,180ms) ease-out}

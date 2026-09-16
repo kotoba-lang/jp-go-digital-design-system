@@ -34,7 +34,8 @@
                     "focus({preventScroll:true})"
                     ;; 2026-09-16: the four new behaviours and collision-aware placement
                     "data-popover-opener" "role=\"tooltip\"" "aria-haspopup" "role=\"slider\"" "aria-valuenow"
-                    "data-placement" "translateX(" "PageUp" "pointerdown"]]
+                    "data-placement" "translateX(" "PageUp" "pointerdown"
+                    "th[aria-sort] button" "data-table-filter" "localeCompare"]]
       (is (str/includes? behavior/script needle) needle)))
   (testing "the layer rules the audit measures are in css, on the token contract"
     (is (re-find #"\[data-menu-popup\]\[data-chrome=float\]\{position:absolute;[^}]*z-index:var\(--hig-z-float,40\)" behavior/css))
