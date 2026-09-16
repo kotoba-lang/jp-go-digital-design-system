@@ -240,8 +240,11 @@
   "DADS form-control-label で control を包む。
   opts: :label :for :support :size(既定 \"md\") :support-id
   :requirement(必須/任意マーカーのテキスト) :required?(true で赤字)
-  :status(グレーの塗りバッジ。状態表示用で必須マーカーではない)"
-  [{:keys [label for support status requirement required? size support-id]
+  :status(グレーの塗りバッジ。状態表示用で必須マーカーではない)
+  :error(文字列。dads-form-control-label__error-text を control の後に出す。
+  id は :error-id、既定 `<for>-error` —— control 側は aria-invalid=true と
+  aria-describedby にその id を持つ(shinkansen.form/field-attrs が出す))"
+  [{:keys [label for support status requirement required? size support-id error error-id]
     :or {size "md"}} control]
   [:div {:class "dads-form-control-label" :data-size size}
    [:label (cond-> {:class "dads-form-control-label__label"} for (assoc :for for))
@@ -258,7 +261,9 @@
      [:p (cond-> {:class "dads-form-control-label__support-text"}
            support-id (assoc :id support-id))
       support])
-   [:div control]])
+   [:div control]
+   (when error
+     [:p {:class "dads-form-control-label__error-text" :id (or error-id (str for "-error"))} error])])
 
 (defn select
   "DADS select。markup は上流 select/with-form-control-label.html に忠実
@@ -383,15 +388,36 @@
 
 (defn table
   "DADS table。{:caption :headers [..] :rows [[..]..] :row-header? bool}
-  row-header? true なら各行の先頭セルを th scope=row にする。"
-  [{:keys [caption headers rows row-header?]}]
-  [:div {:class "dads-table"}
+  row-header? true なら各行の先頭セルを th scope=row にする。
+
+  `behavior`(data-behavior=table、2026-09-16)を使うときの追加 opts:
+  :sortable?(各 th に aria-sort=none + button。click で並べ替え。cell が
+  `{:text :sort-value}` の map なら data-sort-value を持つ) :filter({:id
+  :label :placeholder}。行を絞る input と「表示 / 全体」の件数) :id。
+  どちらも無ければ markup は従来どおり(kotoba/table.kotoba と parity)。"
+  [{:keys [caption headers rows row-header? sortable? filter id]}]
+  (let [behavior? (or sortable? filter)
+        cell-node (fn [tag attrs cell]
+                    (if (and (map? cell) (contains? cell :text))
+                      [tag (cond-> attrs (some? (:sort-value cell)) (assoc :data-sort-value (str (:sort-value cell)))) (:text cell)]
+                      [tag attrs cell]))]
+  [:div (cond-> {:class "dads-table"} behavior? (assoc :data-behavior "table") id (assoc :id id))
+   (when filter
+     [:div {:data-table-toolbar true}
+      (input-text (cond-> {:id (:id filter) :size "sm" :type "search" :data-table-filter true
+                           :aria-label (or (:label filter) "絞り込み")}
+                    (:placeholder filter) (assoc :placeholder (:placeholder filter))))
+      [:span {:data-table-count true :aria-live "polite"}]])
    [:table {:class "dads-table__table"}
     (when caption [:caption caption])
     (when (seq headers)
       [:thead
        (into [:tr]
-             (map (fn [h] [:th {:class "dads-table__col-header" :scope "col"} h])
+             (map (fn [h]
+                    (if sortable?
+                      [:th {:class "dads-table__col-header" :scope "col" :aria-sort "none"}
+                       [:button {:type "button"} h]]
+                      [:th {:class "dads-table__col-header" :scope "col"} h]))
                   headers))])
     (into [:tbody]
           (map (fn [row]
@@ -402,10 +428,10 @@
                           ;; `scope` は styling ではなく accessibility semantics
                           ;; なので、tag と一緒に 1 箇所で決まる必要がある。
                           (if (row-header-cell? row-header? i)
-                            [:th {:class "dads-table__row-header" :scope "row"} cell]
-                            [:td cell]))
+                            (cell-node :th {:class "dads-table__row-header" :scope "row"} cell)
+                            (cell-node :td {} cell)))
                         row)))
-               rows))]])
+               rows))]]))
 
 (defn chip-label
   "DADS chip-label。opts: :color(\"blue\"|\"gray\"|…) :style(既定 \"text\")"
