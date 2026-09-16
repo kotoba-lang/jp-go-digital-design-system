@@ -16,14 +16,67 @@ ADR-2607141915（com-junkawasaki/root）。
 - 既定で**外部リクエストゼロ**（Noto Sans JP の Google Fonts 読み込みは
   `:google-fonts? true` の opt-in）。
 
-## 収録コンポーネント（上流 subset）
+## 収録コンポーネント（上流の全 40 に wrapper、2026-09-16）
 
-button / heading / accordion / input-text / textarea / checkbox /
-form-control-label / table / chip-label / divider / notification-banner /
-select / link / list
+`jp-go-dds.core` の hiccup wrapper（上流 example HTML に class ごと忠実）:
+
+button / heading / accordion / input-text / textarea / checkbox / radio /
+form-field(form-control-label) / select / table / chip-label / divider /
+notification-banner / language-selector / **blockquote / breadcrumb /
+calendar（静的な月 grid）/ carousel-single / date-picker（separated）/
+description-list / disclosure / drawer / emergency-banner / file-upload
+（静的）/ hamburger-menu-button / horizontal-menu / image / link / list /
+menu-list / menu-list-box / modal-dialog / page-navigation /
+progress-indicator / resource-list / search-box / step-navigation / tab /
+toc / utility-link** — 2026-09-16 までは 14 だけで、残り 26 は CSS が
+vendor されているだけで API が無かった。
 
 上流 41 エントリのうち **40 が正式コンポーネント**(各 `c/c.css` を持つ)で、
 `card` だけがパターン(example CSS のみ)。**40 件すべてを vendor 済み**。
+上流の script がアプリケーション 1 本ぶんあるもの（calendar の月送り、
+carousel の slide machine、file-upload の検証・drop）は静的な形だけを出し、
+docstring にそう書いてある — 動くふりはしない。
+
+## behavior 層 — `jp-go-dds.behavior`（shadcn に対する Radix、2026-09-16）
+
+DADS 上流は CSS + example HTML で、開閉・focus・矢印キーの挙動は上流の
+component ごとの script が担う。この workspace ではそれが pattern ごとに
+書き直されていた（shell の account menu、switch）。`jp-go-dds.behavior/script`
+は **1 本の依存ゼロ・冪等な runtime** で、markup の marker
+（`data-behavior=dialog|menu|tabs|disclosure|radiogroup|toast|combobox`）で
+効く。class 名には触らない — shinkansen.audit が `data-chrome` を読むのと
+同じ流儀。`behavior/css` が層の rule（popup は `position:absolute` +
+`z-index:var(--hig-z-float)`、toast は fixed + `--hig-z-toast`）を token 契約で
+持つ。host は script を 1 ファイルとして配る（`script-src 'self'`）。
+
+- **dialog**: `<dialog>` の `showModal()` が focus trap、Escape と focus return
+  は platform。足すのは invoker 属性（`command` / `commandfor`）の polyfill と
+  `data-dialog-open/-close`、backdrop click の方針（既定は何もしない）。
+- **menu**: `[data-menu-opener][aria-expanded]` + `[data-menu-popup][data-chrome=float]`。
+  click / ArrowDown で開き、Escape で閉じて opener に戻り、外側 click / focus で
+  閉じ、Arrow / Home / End / typeahead で移動。
+- **tabs**: `[role=tablist] > [role=tab]` + `[role=tabpanel]`。automatic activation、
+  roving tabindex、`aria-orientation` に従う矢印。
+- **disclosure**: `aria-expanded` + `aria-controls` を持つ control が対象を出し入れ
+  （`<details>` は native のまま）。
+- **radiogroup**: `[role=radio]` を矢印で移動**かつ選択**（click する。何が起きるかは
+  host の click handler）。
+- **toast**: live region + `jpGoDds.behavior.toast({text, actionLabel, onAction, timeout, tone})`。
+- **combobox**: `input[role=combobox]` + `[role=listbox]`。入力で filter、矢印で
+  `aria-activedescendant`、Enter で選択（hidden input と `change` に落ちる）。
+
+実ブラウザ検査: `test/behavior_browser_test.cljk`（390 / 1280、80 assertion）。
+
+## token 面の追加（2026-09-16）
+
+`--hig-*` bridge は **128 個**を運ぶ（71 → 128）。足したのは、text 11 style の
+`font-weight` / `font-family`、`display1-3`、palette の teal / mint / indigo /
+brown / gray2-6（DADS 最寄りの primitive）、そして `--hig-motion-*`（press /
+reveal / panel）・`--hig-z-*`（raised / sticky / float / modal / toast）・
+`--hig-breakpoint-*`（xs / sm / md）。同じ数字は `tokens/motion` /
+`tokens/layers` / `tokens/breakpoints` のデータとしても読め、`tokens_test`
+が両者の一致を pin する。実測の出所: app.itonami.cloud が HIG 層込みで
+117 個を宣言し、kotoba.cloud（この bridge）が 71 個 — 差の 46 個がこれ。
 
 ## CSS の配り方 —— `dds.css` と `css-for`
 
@@ -371,8 +424,9 @@ index で鏡映するので、grey の `420` `536` のような半端な段に�
 ## テスト
 
 ```bash
-kbb --backend sci --classpath "src:test:../html/src" test/run_tests.cljk
-kbb -X:test   # JVM compat
+kbb --backend sci --classpath "src:test:../html/src:../css/src:../text/src" test/run_tests.cljk
+kbb --backend sci --classpath "src:test:../html/src:../css/src:../text/src" test/behavior_browser_test.cljk   # 実ブラウザ
+kbb -X:test   # JVM compat（kbb の engine は git dep を解決しないので 2026-09-16 時点では走らない — parity gate は JVM が要る）
 ```
 
 ## 互換スキン (`jp-go-dds.skin`)

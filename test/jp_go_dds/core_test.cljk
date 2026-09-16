@@ -3,6 +3,7 @@
             [kotoba.lang.text :as str]
             [html.core :as html]
             [jp-go-dds.core :as dds]
+            [jp-go-dds.behavior :as behavior]
             [jp-go-dds.page :as page]
             [jp-go-dds.skin :as skin]
             [jp-go-dds.css :as dcss]))
@@ -269,3 +270,91 @@
   (testing ":dark-source 無しの外部 stylesheet 文書は、:css \"\" から dark を導けないので拒否する（黙って空の dark を出さない）"
     (is (thrown? #?(:clj Exception :cljs :default)
                  (page/->page {:title "t" :css "" :dark? true} [:p "x"])))))
+
+;; ── 2026-09-16: the rest of the vendored catalogue, on the behavior layer ──
+
+(defn- render [h] (html/->html h))
+
+(deftest every-vendored-component-has-a-wrapper-or-a-named-reason
+  ;; 40 css files, 20 wrappers before; each one now either renders its
+  ;; upstream root class or is named here with the reason it does not
+  (let [renders {:blockquote (dds/blockquote [:p "x"])
+                 :breadcrumb (dds/breadcrumb {:home-icon? true} [{:href "/" :label "ホーム"} {:label "今"}])
+                 :calendar (dds/calendar {:year 2026 :month 9 :selected 16})
+                 :carousel (dds/carousel-single {:src "a.webp" :alt "a"})
+                 :date-picker (dds/date-picker {:id-prefix "d"})
+                 :description-list (dds/description-list {} [{:term "a" :description "b"}])
+                 :disclosure (dds/disclosure "Q" [:p "A"] {:id "q"})
+                 :drawer (dds/drawer {:id "dr"} [:p "menu"])
+                 :emergency-banner (dds/emergency-banner {:heading "緊急"} [:p "x"])
+                 :file-upload (dds/file-upload {:id "f"})
+                 :hamburger-menu-button (dds/hamburger-menu-button {})
+                 :horizontal-menu (dds/horizontal-menu {} [{:href "/" :label "a"}])
+                 :image (dds/image {:src "a.png" :alt "a"})
+                 :link (dds/link "l" {:href "/" :external? true})
+                 :list (dds/list {} "a" "b")
+                 :menu-list (dds/menu-list {} [{:label "a" :href "/"}])
+                 :menu-list-box (dds/menu-list-box {:id "m" :label "メニュー"} [{:label "a" :href "/"}])
+                 :modal-dialog (dds/modal-dialog {:id "md" :heading "T"} [:p "x"])
+                 :page-navigation (dds/page-navigation {:counter "1 / 2" :prev {} :next {}})
+                 :progress-indicator (dds/progress-indicator {:value 40 :label "L"})
+                 :resource-list (dds/resource-list {:title "t"})
+                 :search-box (dds/search-box {})
+                 :step-navigation (dds/step-navigation {} [{:title "a"} {:title "b"}])
+                 :tab (dds/tab {:id "t"} [{:id "a" :label "A" :panel [:p "a"]}])
+                 :toc (dds/toc {} [{:href "#a" :label "a"}])
+                 :utility-link (dds/utility-link "u" {:href "/"})}
+        wrapped-before #{:accordion :button :checkbox :chip-label :divider :form-control-label
+                         :heading :input-text :language-selector :notification-banner :radio
+                         :select :table :textarea}
+        root-class {:carousel "dads-carousel-single" :form-control-label "dads-form-control-label"}]
+    (doseq [c dds-components :when (not (wrapped-before c))]
+      (is (contains? renders c) (str (name c) " has no wrapper and no named reason"))
+      (when-let [h (renders c)]
+        (is (str/includes? (render h) (str "class=\"" (get root-class c (str "dads-" (name c)))))
+            (str (name c) " renders its upstream root class"))))))
+
+(deftest behavior-markers-on-the-wrappers-that-need-a-script
+  (testing "a popover menu: opener + floating popup, hidden until opened"
+    (let [h (render (dds/menu-list-box {:id "m" :label "メニュー"} [{:label "a" :href "/a"} {:label "b"}]))]
+      (is (str/includes? h "data-behavior=\"menu\""))
+      (is (str/includes? h "data-menu-opener"))
+      (doseq [a ["aria-controls=\"m-menu\"" "aria-haspopup=\"menu\"" "aria-expanded=\"false\""]]
+        (is (str/includes? h a) a))
+      (is (str/includes? h "data-menu-popup"))
+      (is (str/includes? h "data-chrome=\"float\""))
+      (is (str/includes? h "hidden"))
+      (is (= 2 (count (re-seq #"role=\"menuitem\"" h))))
+      (is (str/includes? h "<a class=\"dads-menu-list__item\" data-type=\"box\" data-size=\"regular\" role=\"menuitem\" href=\"/a\">"))))
+  (testing "a dialog: <dialog> with the invoker pair on its close, the marker for the polyfill"
+    (let [h (render (dds/modal-dialog {:id "md" :heading "T" :actions [(dds/button "OK" {:attrs (behavior/dialog-close-attrs "md")})]} [:p "x"]))]
+      (is (str/starts-with? h "<dialog id=\"md\" class=\"dads-modal-dialog\" aria-labelledby=\"md-title\" data-behavior=\"dialog\">"))
+      (is (str/includes? h "command=\"close\" commandfor=\"md\""))
+      (is (str/includes? h "autofocus"))
+      (is (= {:command "show-modal" :commandfor "md"} (behavior/dialog-open-attrs "md")))))
+  (testing "tabs: roles, one selected, the others hidden"
+    (let [h (render (dds/tab {:id "t"} [{:id "a" :label "A" :panel [:p "a"]} {:id "b" :label "B" :panel [:p "b"]}]))]
+      (is (str/includes? h "data-behavior=\"tabs\""))
+      (is (str/includes? h "role=\"tablist\""))
+      (is (= 1 (count (re-seq #"aria-selected=\"true\"" h))))
+      (is (= 1 (count (re-seq #"role=\"tabpanel\"[^>]*hidden" h))) "one panel hidden before any script runs")))
+  (testing "combobox and toast, the dds-ext patterns"
+    (let [h (render (dds/combobox {:id "c" :name "pref" :label "都道府県"} [{:value "13" :label "東京都" :keywords "tokyo"} {:value "27" :label "大阪府"}]))]
+      (is (str/includes? h "data-behavior=\"combobox\""))
+      (is (str/includes? h "role=\"combobox\""))
+      (doseq [a ["aria-autocomplete=\"list\"" "aria-expanded=\"false\"" "aria-controls=\"c-listbox\"" "role=\"listbox\"" "data-chrome=\"float\"" "hidden"]]
+        (is (str/includes? h a) a))
+      (is (= 2 (count (re-seq #"role=\"option\"" h))))
+      (is (str/includes? h "data-combobox-value")))
+    (is (str/includes? (render (dds/toast-region {})) "data-behavior=\"toast\" role=\"status\" aria-live=\"polite\""))
+    (is (str/includes? (render (dds/toast {:text "保存しました" :tone :success})) "class=\"dds-ext-toast\" data-timeout=\"6000\" data-tone=\"success\""))))
+
+(deftest calendar-grid-is-arithmetic-not-a-guess
+  ;; 2026-09-01 is a Tuesday: two leading blanks, 30 days, 5 rows
+  (let [h (render (dds/calendar {:year 2026 :month 9 :selected 16 :disabled #{1}}))
+        rows (count (re-seq #"<tr>" h))]
+    (is (= 6 rows) "header row + 5 weeks")
+    (is (= 30 (count (re-seq #"class=\"dads-calendar__date\"" h))))
+    (is (= 1 (count (re-seq #"data-selected" h))))
+    (is (str/includes? h "aria-label=\"2026年9月1日\" disabled"))
+    (is (= 29 (count (re-seq #"dads-calendar__date" (render (dds/calendar {:year 2024 :month 2}))))) "leap year")))

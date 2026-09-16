@@ -3,7 +3,7 @@
   `:document` value.
 
   `kotoba/bridge_document.kotoba` must byte-agree with `jp-go-dds.tokens`:
-  the same 71-entry bridge renders to the same `:root { … }` stream, the same
+  the same full bridge (every entry of hig->dads) renders to the same `:root { … }` stream, the same
   brand exclusion renders to the same stream, the same tokens normalize to the
   same custom-property names, and the same tokens answer `bridged?`.
 
@@ -114,7 +114,7 @@
 ;; --- the bridge itself ----------------------------------------------------
 
 (deftest bridge-document-renders-byte-identical-css
-  (testing "the full 71-entry bridge, assembled from chunks"
+  (testing "the full bridge, assembled from chunks"
     (is (< 1 (count chunks))
         "sanity: the bridge really is larger than one document value")
     (let [out (compile-and-run {"full" (sheet-form)})]

@@ -43,7 +43,10 @@
   [css] (str/replace css #"\s+" ""))
 
 (deftest every-bridged-primitive-exists-in-vendored-css
-  (let [declared (declared-custom-properties vendored-css)
+  ;; a value may also reference a key of the bridge itself (the text
+  ;; families reference --hig-font-text / --hig-font-display) — that is
+  ;; declared in the same :root, so it resolves
+  (let [declared (into (declared-custom-properties vendored-css) (keys tokens/hig->dads))
         referenced (referenced-vars (str/join " " (vals tokens/hig->dads)))
         missing (sort (remove declared referenced))]
     (is (empty? missing)
@@ -61,20 +64,59 @@
       (is (not (re-find #"#[0-9a-fA-F]{3,8}\b" v))
           (str k " に raw hex が焼かれている: " v))))
 
-  (testing "raw 値は寸法だけ — 色と family は必ず var() 参照"
+  (testing "raw 値は寸法・時間・層だけ — 色と family は必ず var() 参照"
     ;; 元は「唯一の raw は font-mono」だった。DADS が --font-family-mono を
     ;; 発行しているのでそれは var() になり、代わりに寸法(spacing / radius /
     ;; text)が raw で入った。**寸法は vendor 済み palette に無い**ので参照の
     ;; しようがなく、ここが正しい置き場になる。守りたい不変条件は「raw が
     ;; 1件だけ」ではなく「色は焼かない」なので、そう書き直す。
+    ;; 2026-09-16: motion (Nms) と layer (unitless z-index) も raw で入る —
+    ;; どちらも palette に無い値で、色ではない。
     (let [raw (remove #(str/starts-with? (val %) "var(") tokens/hig->dads)
-          size? #(re-matches #"(calc\(\d+ / 16 \* 1rem\)|\d+px)" %)]
+          size? #(re-matches #"(calc\(\d+ / 16 \* 1rem\)|calc\(1em \+ \d+px\)|clamp\([^)]*\)|-?\d*\.?\d+(?:px|ms|em)?)" %)]
       (doseq [[k v] raw]
         (is (not (str/includes? k "color"))
             (str "色が raw で焼かれている: " k " = " v))
+        (is (not (str/includes? k "palette"))
+            (str "palette が raw で焼かれている: " k " = " v))
         (is (size? v)
-            (str k " の raw 値が寸法の形をしていない(calc(N / 16 * 1rem) か Npx): " v)))
+            (str k " の raw 値が寸法・時間・層・字の形をしていない(calc / clamp / Npx / Nms / Nem / N): " v)))
       (is (seq raw) "寸法の橋渡しが1つも無い"))))
+
+(deftest bridge-carries-the-full-text-and-palette-contract
+  ;; measured 2026-09-16: app.itonami.cloud (HIG layer present) declared 117
+  ;; --hig-* and kotoba.cloud (this bridge) 71; the 46 apart were these
+  (testing "every text style carries size, line-height, weight and family"
+    (doseq [style ["large-title" "title1" "title2" "title3" "headline" "body" "callout" "subheadline" "footnote" "caption1" "caption2"]
+            part ["font-size" "line-height" "font-weight" "font-family"]]
+      (is (contains? tokens/hig->dads (str "--hig-text-" style "-" part)) (str style " " part))))
+  (testing "the three display styles, fluid"
+    (doseq [n [1 2 3]]
+      (is (str/starts-with? (get tokens/hig->dads (str "--hig-text-display" n "-font-size")) "clamp("))
+      (is (= "700" (get tokens/hig->dads (str "--hig-text-display" n "-font-weight"))))))
+  (testing "the sixteen palette members all resolve to a DADS primitive"
+    (doseq [m ["blue" "green" "red" "orange" "cyan" "purple" "pink" "yellow" "gray"
+               "teal" "mint" "indigo" "brown" "gray2" "gray3" "gray4" "gray5" "gray6"]]
+      (is (str/starts-with? (get tokens/hig->dads (str "--hig-palette-" m) "") "var(--color-") m))))
+
+(deftest motion-layers-and-bands-are-one-vocabulary
+  ;; the data a cljk consumer reads (contracts.edn :motion, the shell's
+  ;; layer numbers, shinkansen.viewport's bands) and the custom properties a
+  ;; view references are the same numbers — pinned here so neither can drift
+  (testing "--hig-motion-* carries `motion`"
+    (is (= (str (:press-ms tokens/motion) "ms") (get tokens/hig->dads "--hig-motion-press")))
+    (is (= (str (:reveal-ms tokens/motion) "ms") (get tokens/hig->dads "--hig-motion-reveal")))
+    (is (= (str (:panel-ms tokens/motion) "ms") (get tokens/hig->dads "--hig-motion-panel"))))
+  (testing "--hig-z-* carries `layers`, ascending in the order a person sees them stack"
+    (doseq [[layer z] tokens/layers]
+      (is (= (str z) (get tokens/hig->dads (str "--hig-z-" (name layer)))) (name layer)))
+    (is (apply < (map tokens/layers [:raised :sticky :float :modal :toast]))))
+  (testing "--hig-breakpoint-* carries `breakpoints` (the open-ended :lg has no property)"
+    (doseq [{:keys [id max-width]} tokens/breakpoints]
+      (if max-width
+        (is (= (str max-width "px") (get tokens/hig->dads (str "--hig-breakpoint-" (name id)))) (name id))
+        (is (nil? (get tokens/hig->dads (str "--hig-breakpoint-" (name id)))) (name id))))
+    (is (apply < (keep :max-width tokens/breakpoints)))))
 
 (deftest bridge-covers-the-contract-an-app-actually-needs
   ;; An app that takes DADS as its base drops `shitsuke.hig` entirely, so an
