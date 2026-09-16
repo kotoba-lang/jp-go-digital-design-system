@@ -31,11 +31,17 @@
                     ;; its scroll container: measured 2026-09-16 on the shell
                     ;; rail band (overflow-x:auto), the first item's focus
                     ;; scrolled the rail 48px and the chip left its place
-                    "focus({preventScroll:true})"]]
+                    "focus({preventScroll:true})"
+                    ;; 2026-09-16: the four new behaviours and collision-aware placement
+                    "data-popover-opener" "role=\"tooltip\"" "aria-haspopup" "role=\"slider\"" "aria-valuenow"
+                    "data-placement" "translateX(" "PageUp" "pointerdown"]]
       (is (str/includes? behavior/script needle) needle)))
   (testing "the layer rules the audit measures are in css, on the token contract"
     (is (re-find #"\[data-menu-popup\]\[data-chrome=float\]\{position:absolute;[^}]*z-index:var\(--hig-z-float,40\)" behavior/css))
     (is (re-find #"\[data-behavior=toast\]\{position:fixed;[^}]*z-index:var\(--hig-z-toast,80\)" behavior/css))
     (is (str/includes? behavior/css "[data-behavior] [hidden]{display:none!important}"))
     (is (str/includes? behavior/css "@media(prefers-reduced-motion:reduce)"))
+    (is (re-find #"\[data-chrome=float\]\[data-placement=up\]\{top:auto" behavior/css) "the flip the runtime sets has a rule")
+    (is (re-find #"\[data-popover-panel\]\[data-chrome=float\]\{position:absolute;[^}]*z-index:var\(--hig-z-float,40\)" behavior/css))
+    (is (re-find #"\[data-behavior=tooltip\] \[role=tooltip\]\{position:absolute;[^}]*z-index:var\(--hig-z-toast,80\)" behavior/css))
     (is (not (re-find #"#[0-9a-fA-F]{3,8}\b" behavior/css)) "no colour literal: --hig-* with a DADS primitive as the fallback")))

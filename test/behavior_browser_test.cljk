@@ -4,7 +4,11 @@
 ;; this pins what a person gets: a dialog that traps and returns focus, a menu
 ;; that opens on the keyboard and closes on Escape / outside, tabs on arrows
 ;; with one panel visible, a combobox that filters and chooses, a toast that
-;; leaves by itself, a radiogroup whose arrows choose. Two bands (390 / 1280).
+;; leaves by itself, a radiogroup whose arrows choose — and (2026-09-16) a
+;; popover that toggles and closes outside, a tooltip that waits and shows on
+;; hover / focus, a select whose arrows choose into a hidden input, a slider
+;; whose arrows and pointer move the value, and a menu at the bottom of the
+;; viewport that flips up. Two bands (390 / 1280).
 ;;
 ;;   kbb --backend sci --classpath "src:test:../html/src:../css/src:../text/src" test/behavior_browser_test.cljk
 ;;
@@ -52,6 +56,18 @@
          [:section {:id "s-disclosure"}
           [:button {:type "button" :id "more" :data-behavior "disclosure" :aria-expanded "false" :aria-controls "more-panel" :class "dads-button" :data-type "text" :data-size "sm"} "もっと見る"]
           [:div {:id "more-panel" :hidden true} [:p "hidden until asked"]]]
+         [:section {:id "s-popover"}
+          (dds/popover {:id "po" :label "詳細" :focus? true} [:p "補足"] (dds/button "了解" {:id "po-ok" :size "sm"}))
+          [:p {:id "after-popover"} "after"]]
+         [:section {:id "s-tooltip"}
+          (dds/tooltip {:id "tt" :text "ヒント本文" :delay 100} (dds/button "?" {:id "tt-trigger" :size "sm" :type "outline"}))]
+         [:section {:id "s-select"}
+          (dds/select-listbox {:id "sz" :name "sz" :label "サイズ"} [{:value "s" :label "小"} {:value "m" :label "中"} {:value "l" :label "大"}])]
+         [:section {:id "s-slider"}
+          (dds/slider {:id "vol" :name "vol" :label "音量" :value 30 :step 5 :output? true})]
+         [:div {:style "block-size:900px"}]
+         [:section {:id "s-bottom"}
+          (dds/menu-list-box {:id "bottom-menu" :label "下端"} [{:label "一" :attrs {:id "bm-one"}} {:label "二"} {:label "三"} {:label "四"} {:label "五"} {:label "六"}])]
          (dds/toast-region {})])
        "<script>document.addEventListener('click',e=>{const r=e.target.closest('[role=radio]');if(r){r.closest('[role=radiogroup]').querySelectorAll('[role=radio]').forEach(x=>x.setAttribute('aria-checked',x===r?'true':'false'));}});</script>"
        "</main></body></html>"))
@@ -141,6 +157,59 @@ const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://x').p
   ok(await page.evaluate(()=>document.querySelectorAll('[data-behavior=toast] .dds-ext-toast').length===1),'timeout 0 stays');
   await page.click('[data-toast-close]');
   await page.waitForFunction(()=>document.querySelectorAll('[data-behavior=toast] .dds-ext-toast').length===0,null,{timeout:3000});n++;
+  // --- popover: click opens with focus inside, Escape closes to the opener, outside click closes; the panel floats
+  await page.click('#po-opener');
+  ok(await page.evaluate(()=>!document.getElementById('po-panel').hidden&&document.getElementById('po-opener').getAttribute('aria-expanded')==='true'),'popover open');
+  ok((await active(page))==='po-ok','data-popover-focus moved focus in, got '+await active(page));
+  const pl=await page.evaluate(()=>{const cs=getComputedStyle(document.getElementById('po-panel'));return {pos:cs.position,z:cs.zIndex};});
+  ok(pl.pos==='absolute'&&Number(pl.z)>=40,'popover panel floats: '+JSON.stringify(pl));
+  await page.keyboard.press('Escape');
+  ok(await page.evaluate(()=>document.getElementById('po-panel').hidden),'Escape closed the popover');
+  ok((await active(page))==='po-opener','focus back on the popover opener, got '+await active(page));
+  await page.click('#po-opener');await page.mouse.click(5,5);
+  ok(await page.evaluate(()=>document.getElementById('po-panel').hidden),'outside click closed the popover');
+  // --- tooltip: hidden at rest, shows after the delay on hover, hides on leave; shows on focus, Escape hides
+  ok(await page.evaluate(()=>document.getElementById('tt-tooltip').hidden),'tooltip hidden at rest');
+  await page.hover('#tt-trigger');
+  await page.waitForFunction(()=>!document.getElementById('tt-tooltip').hidden,null,{timeout:2000});n++;
+  ok(await page.evaluate(()=>document.getElementById('tt-trigger').getAttribute('aria-describedby')==='tt-tooltip'),'trigger is described by the tooltip');
+  await page.mouse.move(5,5);
+  await page.waitForFunction(()=>document.getElementById('tt-tooltip').hidden,null,{timeout:2000});n++;
+  await page.focus('#tt-trigger');
+  await page.waitForFunction(()=>!document.getElementById('tt-tooltip').hidden,null,{timeout:2000});n++;
+  await page.keyboard.press('Escape');
+  ok(await page.evaluate(()=>document.getElementById('tt-tooltip').hidden),'Escape hid the tooltip');
+  // --- select: ArrowDown opens on the first option, ArrowDown moves, Enter chooses into the hidden input and the button label; typeahead when closed chooses
+  await page.focus('#sz');await page.keyboard.press('ArrowDown');
+  ok(await page.evaluate(()=>!document.getElementById('sz-listbox').hidden&&document.getElementById('sz').getAttribute('aria-expanded')==='true'),'select opened on ArrowDown');
+  ok(await page.evaluate(()=>document.getElementById('sz').getAttribute('aria-activedescendant')==='sz-listbox-0'),'first option active');
+  await page.keyboard.press('ArrowDown');
+  ok(await page.evaluate(()=>document.getElementById('sz').getAttribute('aria-activedescendant')==='sz-listbox-1'),'ArrowDown to the second option');
+  await page.keyboard.press('Enter');
+  ok(await page.evaluate(()=>document.querySelector('[data-select-value]').value==='m'&&document.querySelector('#sz [data-select-label]').textContent==='中'&&document.getElementById('sz-listbox').hidden),'Enter chose 中: hidden input m, label 中, list closed');
+  ok((await active(page))==='sz','focus stays on the select button, got '+await active(page));
+  await page.keyboard.press('Escape');await page.click('#sz');
+  ok(await page.evaluate(()=>!document.getElementById('sz-listbox').hidden),'click opened the select');
+  await page.click('#sz-listbox-2');
+  ok(await page.evaluate(()=>document.querySelector('[data-select-value]').value==='l'),'click chose 大');
+  // --- slider: arrows step, End goes to max, a click on the track lands near its fraction; the track fill follows
+  await page.focus('#vol-thumb');
+  ok(await page.evaluate(()=>document.getElementById('vol-thumb').getAttribute('aria-valuenow')==='30'),'slider starts at 30');
+  await page.keyboard.press('ArrowRight');
+  ok(await page.evaluate(()=>document.getElementById('vol-thumb').getAttribute('aria-valuenow')==='35'&&document.querySelector('[data-slider-value]').value==='35'&&document.querySelector('[data-slider-output]').textContent==='35'),'ArrowRight stepped by 5 into the hidden input and the output');
+  await page.keyboard.press('End');
+  ok(await page.evaluate(()=>document.getElementById('vol-thumb').getAttribute('aria-valuenow')==='100'&&document.getElementById('vol').style.getPropertyValue('--slider-value')==='100%'),'End to max, fill 100%');
+  const tr=await page.evaluate(()=>{const r=document.querySelector('#vol [data-slider-track]').getBoundingClientRect();return {x:r.left+r.width*0.5,y:r.top+r.height/2};});
+  await page.mouse.click(tr.x,tr.y);
+  const mid=await page.evaluate(()=>Number(document.getElementById('vol-thumb').getAttribute('aria-valuenow')));
+  ok(mid>=40&&mid<=60,'click at the middle of the track lands near 50, got '+mid);
+  // --- placement: a menu at the bottom of the viewport flips up (data-placement=up) and stays inside the viewport
+  await page.evaluate(()=>document.getElementById('s-bottom').scrollIntoView({block:'end'}));
+  await page.evaluate(()=>window.scrollBy(0,-20));
+  await page.click('#bottom-menu-opener');
+  const bm=await page.evaluate(()=>{const p=document.querySelector('#bottom-menu [data-menu-popup]');const r=p.getBoundingClientRect();return {placement:p.getAttribute('data-placement'),bottom:r.bottom,top:r.top,vh:innerHeight,hidden:p.hidden};});
+  ok(!bm.hidden&&bm.placement==='up'&&bm.bottom<=bm.vh&&bm.top>=0,'bottom menu flipped up and fits: '+JSON.stringify(bm));
+  await page.keyboard.press('Escape');
   await page.close();
   console.log('PASS',width);
  }

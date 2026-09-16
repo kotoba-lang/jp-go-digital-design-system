@@ -1159,6 +1159,87 @@
                    options)
       [:li {:role "presentation"} [:p {:class "dads-menu-list__label" :data-combobox-empty true :hidden true} empty-label]]]]))
 
+(defn popover
+  "popover(非 modal の浮き panel)— DADS に無い pattern を button + float で組み、
+  `behavior`(data-behavior=popover)が動かす。opts: :id(必須。opener / panel の
+  id を派生) :label(opener のテキスト) :size :style(button の見た目)
+  :align(:start 既定 | :end) :focus?(開いたとき panel の先頭へ focus) :attrs
+  body は panel の中身(hiccup)。閉じ方は Escape / 外側 click / focus-out /
+  opener 再 click。modal が要るなら modal-dialog。"
+  [{:keys [id label size style align focus? attrs] :or {size "sm" style "outlined" align :start}} & body]
+  (let [opener-id (str id "-opener") panel-id (str id "-panel")]
+    [:div (merge attrs (cond-> {:id id :class "dds-ext-popover" :data-behavior "popover"}
+                         (= align :end) (assoc :data-popover-align "end")
+                         focus? (assoc :data-popover-focus true)))
+     [:button {:id opener-id :type "button" :class "dads-button" :data-type style :data-size size
+               :data-popover-opener true :aria-expanded "false" :aria-controls panel-id}
+      label]
+     (into [:div {:id panel-id :class "dds-ext-popover__panel" :data-popover-panel true :data-chrome "float"
+                  :hidden true :role "group" :aria-labelledby opener-id}]
+           body)]))
+
+(defn tooltip
+  "tooltip(hover / focus で出る補足)— `behavior`(data-behavior=tooltip)が
+  動かす。opts: :id(必須。tooltip の id を派生) :text(本文) :delay(ms、既定 300)
+  :attrs。trigger は hiccup 1 個(先頭が tag、2 番目が attrs map なら
+  aria-describedby を足す。attrs が無ければ足して包む)。
+  本文は補足であって必須情報ではない —— 必須なら見える label に置く。"
+  [{:keys [id text delay attrs]} trigger]
+  (let [tip-id (str id "-tooltip")
+        [tag maybe-attrs & rest] trigger
+        trigger (if (map? maybe-attrs)
+                  (into [tag (assoc maybe-attrs :aria-describedby tip-id)] rest)
+                  (into [tag {:aria-describedby tip-id}] (next trigger)))]
+    [:span (merge attrs (cond-> {:id id :class "dds-ext-tooltip" :data-behavior "tooltip"}
+                          delay (assoc :data-delay (str delay))))
+     trigger
+     [:span {:id tip-id :role "tooltip" :hidden true} text]]))
+
+(defn select-listbox
+  "select(listbox 版)— option を自由な markup で持ちたいときの、APG
+  select-only combobox を DADS の button + menu-list の class で組み、
+  `behavior`(data-behavior=select)が動かす。native の <select> でよいときは
+  `select`(DADS)を使う —— こちらは見た目を持てる分、markup が多い。
+  opts: :id(必須) :name(hidden input の name) :label(aria-label)
+  :placeholder(未選択の表示、既定「選択してください」) :value :size :attrs
+  options は `{:value :label}` の列。"
+  [{:keys [id name label placeholder value size attrs] :or {placeholder "選択してください" size "sm"}} options]
+  (let [list-id (str id "-listbox")
+        current (some #(when (= (str (:value %)) (str value)) %) options)]
+    [:div (merge attrs (cond-> {:id (str id "-select") :class "dds-ext-select" :data-behavior "select"}
+                         current (assoc :data-value (str value))))
+     [:button (cond-> {:id id :type "button" :class "dads-button" :data-type "outline" :data-size size
+                       :role "combobox" :aria-haspopup "listbox" :aria-expanded "false" :aria-controls list-id}
+                label (assoc :aria-label label))
+      [:span {:data-select-label true} (or (:label current) placeholder)]
+      [:svg {:class "dads-menu-list-box__opener-arrow" :width 16 :height 16 :viewBox "0 0 24 24"
+             :fill "currentcolor" :aria-hidden "true"}
+       [:path {:d "m20.5 6.6-8 8-8-8L3.1 8l9.4 9.4L21.9 8l-1.4-1.4Z"}]]]
+     (when name [:input {:type "hidden" :name name :value (or value "") :data-select-value true}])
+     [:ul {:id list-id :class "dads-menu-list" :role "listbox" :data-chrome "float" :hidden true
+           :aria-label (or label "選択肢")}
+      (map-indexed (fn [i {:keys [value label]}]
+                     [:li {:role "presentation"}
+                      [:div {:id (str list-id "-" i) :class "dads-menu-list__item" :data-type "box" :data-size "regular"
+                             :role "option" :aria-selected (if (= (str value) (str (:value current))) "true" "false")
+                             :data-value (str value) :data-label label}
+                       [:span {:class "dads-menu-list__label"} label]]])
+                   options)]]))
+
+(defn slider
+  "slider(1 つまみ)— `behavior`(data-behavior=slider)が動かす。native の
+  <input type=range> でよいときはそれを使う。opts: :id(必須) :name(hidden
+  input の name) :label(aria-label、必須) :min(既定 0) :max(既定 100)
+  :step(既定 1) :value(既定 min) :output?(現在値を横に出す) :attrs"
+  [{:keys [id name label min max step value output? attrs] :or {min 0 max 100 step 1}}]
+  (let [value (or value min)]
+    [:div (merge attrs {:id id :class "dds-ext-slider" :data-behavior "slider" :data-step (str step)})
+     (when name [:input {:type "hidden" :name name :value (str value) :data-slider-value true}])
+     [:div {:class "dds-ext-slider__track" :data-slider-track true}
+      [:span {:id (str id "-thumb") :role "slider" :tabindex "0" :aria-label label
+              :aria-valuemin (str min) :aria-valuemax (str max) :aria-valuenow (str value)}]]
+     (when output? [:output {:for (str id "-thumb") :class "dds-ext-slider__output" :data-slider-output true} (str value)])]))
+
 (defn toast-region
   "toast の live region(1 文書に 1 つ、body の末尾)。`behavior` が
   jpGoDds.behavior.toast() でここに .dds-ext-toast を追加する。

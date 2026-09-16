@@ -50,6 +50,40 @@
                                [data-combobox-value] hidden input, a change
                                event), Escape / outside closes
 
+    data-behavior=\"popover\"     [data-popover-opener][aria-expanded][aria-
+                               controls] + [data-popover-panel][data-chrome=
+                               float][hidden] — non-modal: click toggles,
+                               Escape closes and refocuses the opener,
+                               outside click / focus-out closes;
+                               data-popover-focus moves focus in on open
+    data-behavior=\"tooltip\"     a trigger [aria-describedby] + [role=tooltip]
+                               [hidden] — shows after data-delay ms (300)
+                               on hover or focus, hides on leave / blur /
+                               Escape; above, below when there is no room
+    data-behavior=\"select\"      button[role=combobox][aria-haspopup=listbox]
+                               [aria-expanded][aria-controls] + [role=
+                               listbox][data-chrome=float][hidden] of
+                               [role=option][data-value] (APG select-only
+                               combobox) — arrows open and move, Enter /
+                               Space choose, Escape closes, typeahead,
+                               Home / End; value → root data-value,
+                               [data-select-value], a change event
+    data-behavior=\"slider\"      [data-slider-track] + [role=slider][aria-
+                               valuemin][aria-valuemax][aria-valuenow] —
+                               arrows ± data-step (1), PageUp / PageDown ±
+                               10 steps, Home / End, pointer drag on the
+                               track; value → aria-valuenow, --slider-value
+                               (percent, the track fill), [data-slider-
+                               value], input / change events
+
+  Placement is collision-aware without a library (2026-09-16): every
+  floating popup (menu, combobox, popover, select) is placed on open —
+  flipped above its anchor when it would leave the viewport below and
+  there is more room above (data-placement=up), and clamped horizontally
+  with a translateX so it never runs off either edge; a tooltip prefers
+  above and flips below (data-placement=down). `place(popup, anchor)` is
+  exported for a host's own float.
+
   `css` carries the layer rules the markers need (a popup floats:
   position:absolute + z-index:var(--hig-z-float) — the rule :chrome-layers
   measures; the toast region is fixed at var(--hig-z-toast); [hidden] wins
@@ -85,7 +119,17 @@
    "toast"      {:root "[data-behavior=toast][role=status][aria-live]" :needs []}
    "combobox"   {:root "[data-behavior=combobox]"
                  :needs ["[role=combobox][aria-expanded][aria-controls][aria-autocomplete]"
-                         "[role=listbox][data-chrome=float]"]}})
+                         "[role=listbox][data-chrome=float]"]}
+   "popover"    {:root "[data-behavior=popover]"
+                 :needs ["[data-popover-opener][aria-expanded][aria-controls]"
+                         "[data-popover-panel][data-chrome=float][hidden]"]}
+   "tooltip"    {:root "[data-behavior=tooltip]"
+                 :needs ["[aria-describedby]" "[role=tooltip][hidden]"]}
+   "select"     {:root "[data-behavior=select]"
+                 :needs ["[role=combobox][aria-haspopup=listbox][aria-expanded][aria-controls]"
+                         "[role=listbox][data-chrome=float][hidden]" "[role=option][data-value]"]}
+   "slider"     {:root "[data-behavior=slider]"
+                 :needs ["[role=slider][aria-valuemin][aria-valuemax][aria-valuenow]"]}})
 
 (def script
   "The behavior runtime — see the namespace docstring. Ship as a file."
@@ -115,11 +159,14 @@ doc.addEventListener('click',e=>{
 doc.addEventListener('close',e=>{const d=e.target;if(d.tagName!=='DIALOG')return;const o=d.__jpOpener;d.__jpOpener=null;if(o&&o.isConnected&&typeof o.focus==='function'&&!d.contains(o))o.focus();},true);
 doc.addEventListener('click',e=>{const d=e.target;if(d.tagName==='DIALOG'&&d.open&&d.dataset.behavior==='dialog'&&d.dataset.backdropClick==='close'){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)closeDialog(d);}});
 
+/* ---- placement: flip a float above its anchor when it would leave the viewport below (and there is more room above), clamp it horizontally — collision-aware, no library. data-placement=up is what css keys on; the horizontal shift is a translateX so the author's inset rules stay */
+const place=(popup,anchor)=>{if(!popup||!anchor)return;popup.removeAttribute('data-placement');popup.style.transform='';const gap=8;const a=anchor.getBoundingClientRect();const r=popup.getBoundingClientRect();const below=innerHeight-a.bottom,above=a.top;if(r.height+gap>below&&above>below)popup.setAttribute('data-placement','up');const r2=popup.getBoundingClientRect();let dx=0;if(r2.left<gap)dx=gap-r2.left;else if(r2.right>innerWidth-gap)dx=innerWidth-gap-r2.right;if(dx)popup.style.transform='translateX('+Math.round(dx)+'px)';};
+
 /* ---- menu: [data-behavior=\"menu\"] > [data-menu-opener][aria-expanded] + [data-menu-popup][hidden] (the popup carries data-chrome=\"float\", the layer the audit measures) with [role=\"menuitem\"] items */
 const menuParts=root=>({opener:root.querySelector('[data-menu-opener]'),popup:root.querySelector('[data-menu-popup]'),items:Array.from(root.querySelectorAll('[data-menu-popup] [role=\"menuitem\"],[data-menu-popup] [role=\"menuitemradio\"],[data-menu-popup] [role=\"menuitemcheckbox\"],[data-menu-popup] [data-menu-item]')).filter(visible)});
 const menus=()=>Array.from(doc.querySelectorAll('[data-behavior=\"menu\"]'));
 const closeMenu=(root,refocus)=>{const {opener,popup}=menuParts(root);if(!popup||popup.hidden)return;popup.hidden=true;if(opener)opener.setAttribute('aria-expanded','false');if(refocus&&opener)opener.focus({preventScroll:true});root.dispatchEvent(new CustomEvent('jp-go-dds:menu-close',{bubbles:true}));};
-const openMenu=root=>{const {opener,popup,items}=menuParts(root);if(!popup)return;menus().forEach(o=>{if(o!==root&&!o.contains(root))closeMenu(o,false);});popup.hidden=false;if(opener)opener.setAttribute('aria-expanded','true');const first=items.find(i=>i.getAttribute('aria-checked')==='true')||menuParts(root).items[0];if(first)first.focus({preventScroll:true});root.dispatchEvent(new CustomEvent('jp-go-dds:menu-open',{bubbles:true}));};
+const openMenu=root=>{const {opener,popup,items}=menuParts(root);if(!popup)return;menus().forEach(o=>{if(o!==root&&!o.contains(root))closeMenu(o,false);});popup.hidden=false;if(opener)opener.setAttribute('aria-expanded','true');if(!root.hasAttribute('data-menu-placement'))place(popup,opener);const first=items.find(i=>i.getAttribute('aria-checked')==='true')||menuParts(root).items[0];if(first)first.focus({preventScroll:true});root.dispatchEvent(new CustomEvent('jp-go-dds:menu-open',{bubbles:true}));};
 doc.addEventListener('click',e=>{
  const opener=e.target.closest('[data-menu-opener]');
  if(opener){const root=opener.closest('[data-behavior=\"menu\"]');if(root){e.preventDefault();opener.getAttribute('aria-expanded')==='true'?closeMenu(root,true):openMenu(root);return;}}
@@ -168,7 +215,7 @@ doc.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const item=e.targe
 const cbParts=root=>({input:root.querySelector('[role=\"combobox\"]'),list:root.querySelector('[role=\"listbox\"]'),options:Array.from(root.querySelectorAll('[role=\"option\"]')),empty:root.querySelector('[data-combobox-empty]'),value:root.querySelector('[data-combobox-value]')});
 const cbVisible=root=>cbParts(root).options.filter(o=>!o.hidden&&!(o.parentElement&&o.parentElement.hidden));
 const cbSetActive=(root,opt)=>{const {input,options}=cbParts(root);options.forEach(o=>o.setAttribute('aria-selected',o===opt?'true':'false'));if(opt){ensureId(opt,'option');input.setAttribute('aria-activedescendant',opt.id);if(opt.scrollIntoView)opt.scrollIntoView({block:'nearest'});}else input.removeAttribute('aria-activedescendant');};
-const cbOpen=root=>{const {input,list}=cbParts(root);if(!list)return;list.hidden=false;input.setAttribute('aria-expanded','true');};
+const cbOpen=root=>{const {input,list}=cbParts(root);if(!list)return;list.hidden=false;input.setAttribute('aria-expanded','true');place(list,input);};
 const cbClose=root=>{const {input,list}=cbParts(root);if(!list||list.hidden)return;list.hidden=true;input.setAttribute('aria-expanded','false');cbSetActive(root,null);};
 const cbFilter=root=>{const {input,options,empty}=cbParts(root);const term=normalize(input.value);let n=0;options.forEach(o=>{const hay=normalize(o.dataset.comboboxKeywords||o.textContent);const show=!term||hay.includes(term);const li=o.parentElement&&o.parentElement.tagName==='LI'?o.parentElement:o;li.hidden=!show;if(show)n++;});if(empty)empty.hidden=n>0;return n;};
 const cbChoose=(root,opt)=>{const {input,value}=cbParts(root);const label=opt.dataset.label||opt.textContent.trim();const v=opt.dataset.value!=null?opt.dataset.value:label;input.value=label;root.dataset.value=v;if(value)value.value=v;cbClose(root);input.dispatchEvent(new Event('change',{bubbles:true}));root.dispatchEvent(new CustomEvent('jp-go-dds:combobox-choose',{bubbles:true,detail:{value:v,label}}));};
@@ -183,9 +230,51 @@ doc.addEventListener('keydown',e=>{const root=e.target.closest('[data-behavior=\
  if(e.key==='Tab')cbClose(root);
 });
 
+/* ---- popover: [data-behavior=\"popover\"] > [data-popover-opener][aria-expanded][aria-controls] + [data-popover-panel][data-chrome=\"float\"][hidden] — non-modal: click toggles, Escape closes and refocuses the opener, outside click / focus-out closes, placement flips and clamps; data-popover-focus on the root moves focus into the panel on open */
+const popParts=root=>({opener:root.querySelector('[data-popover-opener]'),panel:root.querySelector('[data-popover-panel]')});
+const popovers=()=>Array.from(doc.querySelectorAll('[data-behavior=\"popover\"]'));
+const closePopover=(root,refocus)=>{const {opener,panel}=popParts(root);if(!panel||panel.hidden)return;panel.hidden=true;if(opener)opener.setAttribute('aria-expanded','false');if(refocus&&opener)opener.focus({preventScroll:true});root.dispatchEvent(new CustomEvent('jp-go-dds:popover-close',{bubbles:true}));};
+const openPopover=root=>{const {opener,panel}=popParts(root);if(!panel)return;popovers().forEach(o=>{if(o!==root&&!o.contains(root))closePopover(o,false);});panel.hidden=false;if(opener)opener.setAttribute('aria-expanded','true');place(panel,opener);if(root.hasAttribute('data-popover-focus')){const f=focusables(panel)[0];if(f)f.focus({preventScroll:true});}root.dispatchEvent(new CustomEvent('jp-go-dds:popover-open',{bubbles:true}));};
+doc.addEventListener('click',e=>{const opener=e.target.closest('[data-popover-opener]');if(opener){const root=opener.closest('[data-behavior=\"popover\"]');if(root){e.preventDefault();opener.getAttribute('aria-expanded')==='true'?closePopover(root,true):openPopover(root);return;}}popovers().forEach(root=>{if(!root.contains(e.target))closePopover(root,false);});});
+doc.addEventListener('focusin',e=>popovers().forEach(root=>{if(!root.contains(e.target))closePopover(root,false);}));
+doc.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const root=e.target.closest('[data-behavior=\"popover\"]');if(!root)return;const {panel}=popParts(root);if(panel&&!panel.hidden){e.preventDefault();closePopover(root,true);}});
+
+/* ---- tooltip: [data-behavior=\"tooltip\"] > a trigger [aria-describedby] + [role=\"tooltip\"][hidden] — shows after data-delay ms (300) on hover or focus, hides on leave / blur / Escape; above the trigger, below (data-placement=down) when there is no room, clamped horizontally */
+const tipParts=root=>({trigger:root.querySelector('[aria-describedby]'),tip:root.querySelector('[role=\"tooltip\"]')});
+const showTip=root=>{const {trigger,tip}=tipParts(root);if(!tip||!trigger||!tip.hidden)return;tip.hidden=false;tip.removeAttribute('data-placement');tip.style.transform='';const gap=8;const a=trigger.getBoundingClientRect(),r=tip.getBoundingClientRect();if(a.top<r.height+gap&&innerHeight-a.bottom>a.top)tip.setAttribute('data-placement','down');const r2=tip.getBoundingClientRect();let dx=0;if(r2.left<gap)dx=gap-r2.left;else if(r2.right>innerWidth-gap)dx=innerWidth-gap-r2.right;if(dx)tip.style.transform='translateX('+Math.round(dx)+'px)';};
+const hideTip=root=>{const {tip}=tipParts(root);if(tip&&!tip.hidden)tip.hidden=true;};
+const armTooltip=root=>{const {trigger}=tipParts(root);if(!trigger||trigger.__jpTip)return;trigger.__jpTip=true;const ms=Number(root.dataset.delay==null?300:root.dataset.delay);let t=null;const open=()=>{clearTimeout(t);t=setTimeout(()=>showTip(root),ms);};const close=()=>{clearTimeout(t);hideTip(root);};trigger.addEventListener('mouseenter',open);trigger.addEventListener('mouseleave',close);trigger.addEventListener('focus',open);trigger.addEventListener('blur',close);};
+doc.addEventListener('keydown',e=>{if(e.key!=='Escape')return;doc.querySelectorAll('[data-behavior=\"tooltip\"]').forEach(hideTip);});
+
+/* ---- select: [data-behavior=\"select\"] > button[role=\"combobox\"][aria-haspopup=\"listbox\"][aria-controls] + [role=\"listbox\"][hidden] of [role=\"option\"][data-value] (APG select-only combobox) — arrows open and move aria-activedescendant, Enter / Space choose, Escape closes, typeahead, Home / End; the value lands on the root (data-value), on [data-select-value] (a hidden input) and as a change event; [data-select-label] is the text the button shows */
+const selParts=root=>({button:root.querySelector('[role=\"combobox\"]'),list:root.querySelector('[role=\"listbox\"]'),options:Array.from(root.querySelectorAll('[role=\"option\"]')).filter(o=>!o.hasAttribute('aria-disabled')),value:root.querySelector('[data-select-value]'),label:root.querySelector('[data-select-label]')});
+const selSetActive=(root,opt)=>{const {button,options}=selParts(root);options.forEach(o=>o.setAttribute('aria-selected',o===opt?'true':'false'));if(opt){ensureId(opt,'option');button.setAttribute('aria-activedescendant',opt.id);if(opt.scrollIntoView)opt.scrollIntoView({block:'nearest'});}else button.removeAttribute('aria-activedescendant');};
+const selClose=root=>{const {button,list}=selParts(root);if(!list||list.hidden)return;list.hidden=true;button.setAttribute('aria-expanded','false');button.removeAttribute('aria-activedescendant');};
+const selOpen=root=>{const {button,list,options}=selParts(root);if(!list)return;doc.querySelectorAll('[data-behavior=\"select\"]').forEach(o=>{if(o!==root)selClose(o);});list.hidden=false;button.setAttribute('aria-expanded','true');place(list,button);const cur=options.find(o=>o.dataset.value===root.dataset.value)||options[0];selSetActive(root,cur);};
+const selChoose=(root,opt)=>{const {button,value,label,options}=selParts(root);const text=opt.dataset.label||opt.textContent.trim();const v=opt.dataset.value!=null?opt.dataset.value:text;(label||button).textContent=text;root.dataset.value=v;if(value)value.value=v;options.forEach(o=>o.setAttribute('aria-selected',o===opt?'true':'false'));selClose(root);button.focus({preventScroll:true});root.dispatchEvent(new CustomEvent('jp-go-dds:select-choose',{bubbles:true,detail:{value:v,label:text}}));if(value)value.dispatchEvent(new Event('change',{bubbles:true}));};
+doc.addEventListener('click',e=>{const root=e.target.closest('[data-behavior=\"select\"]');const opt=e.target.closest('[role=\"option\"]');if(root&&opt&&root.contains(opt)){e.preventDefault();selChoose(root,opt);return;}const b=e.target.closest('[data-behavior=\"select\"] [role=\"combobox\"]');if(b){const r=b.closest('[data-behavior=\"select\"]');e.preventDefault();selParts(r).list&&selParts(r).list.hidden?selOpen(r):selClose(r);return;}doc.querySelectorAll('[data-behavior=\"select\"]').forEach(r=>{if(!r.contains(e.target))selClose(r);});});
+doc.addEventListener('focusin',e=>doc.querySelectorAll('[data-behavior=\"select\"]').forEach(r=>{if(!r.contains(e.target))selClose(r);}));
+doc.addEventListener('keydown',e=>{const b=e.target.closest('[data-behavior=\"select\"] [role=\"combobox\"]');if(!b)return;const root=b.closest('[data-behavior=\"select\"]');const {list,options}=selParts(root);const open=list&&!list.hidden;const cur=options.findIndex(o=>o.getAttribute('aria-selected')==='true');
+ if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();if(!open){selOpen(root);return;}if(!options.length)return;const n=e.key==='ArrowDown'?Math.min(cur+1,options.length-1):Math.max(cur-1,0);selSetActive(root,options[n]);return;}
+ if(e.key==='Home'||e.key==='End'){if(open&&options.length){e.preventDefault();selSetActive(root,options[e.key==='Home'?0:options.length-1]);}return;}
+ if(e.key==='Enter'||e.key===' '){e.preventDefault();if(open){if(cur>=0)selChoose(root,options[cur]);else selClose(root);}else selOpen(root);return;}
+ if(e.key==='Escape'){if(open){e.preventDefault();selClose(root);}return;}
+ if(e.key==='Tab'){selClose(root);return;}
+ if(e.key.length===1&&/\\S/.test(e.key)){const k=normalize(e.key);const from=cur+1;for(let i=0;i<options.length;i++){const o=options[(from+i)%options.length];if(normalize(o.textContent).startsWith(k)){e.preventDefault();if(open)selSetActive(root,o);else selChoose(root,o);break;}}}
+});
+
+/* ---- slider: [data-behavior=\"slider\"] > [data-slider-track] + [role=\"slider\"][aria-valuemin][aria-valuemax][aria-valuenow] — arrows ± data-step (1), PageUp / PageDown ± 10 steps, Home / End; pointer drag on the track (pointer capture on document); the value lands on aria-valuenow, --slider-value (percent, the track fill), [data-slider-value] (a hidden input), [data-slider-output] (text) and as jp-go-dds:slider-input / -change (+ a change event on the input) */
+const slParts=root=>({thumb:root.querySelector('[role=\"slider\"]'),track:root.querySelector('[data-slider-track]')||root,value:root.querySelector('[data-slider-value]'),out:root.querySelector('[data-slider-output]')});
+const slNum=(el,a,d)=>{const v=Number(el.getAttribute(a));return isNaN(v)?d:v;};
+const slSet=(root,v,commit)=>{const {thumb,value,out}=slParts(root);if(!thumb)return;const min=slNum(thumb,'aria-valuemin',0),max=slNum(thumb,'aria-valuemax',100),step=Number(root.dataset.step||1)||1;v=Math.min(max,Math.max(min,Math.round((v-min)/step)*step+min));v=Number(v.toFixed(6));const pct=max>min?((v-min)/(max-min))*100:0;thumb.setAttribute('aria-valuenow',String(v));root.style.setProperty('--slider-value',pct+'%');if(value)value.value=String(v);if(out)out.textContent=String(v);root.dispatchEvent(new CustomEvent('jp-go-dds:slider-input',{bubbles:true,detail:{value:v}}));if(commit){if(value)value.dispatchEvent(new Event('change',{bubbles:true}));root.dispatchEvent(new CustomEvent('jp-go-dds:slider-change',{bubbles:true,detail:{value:v}}));}};
+const initSlider=root=>{const {thumb}=slParts(root);if(!thumb||root.__jpSlider)return;root.__jpSlider=true;if(!thumb.hasAttribute('tabindex'))thumb.setAttribute('tabindex','0');slSet(root,slNum(thumb,'aria-valuenow',slNum(thumb,'aria-valuemin',0)),false);};
+const slFromPointer=(root,e)=>{const {thumb,track}=slParts(root);const r=track.getBoundingClientRect();const min=slNum(thumb,'aria-valuemin',0),max=slNum(thumb,'aria-valuemax',100);const x=Math.min(r.right,Math.max(r.left,e.clientX));const frac=r.width?(x-r.left)/r.width:0;const rtl=getComputedStyle(root).direction==='rtl';return min+(rtl?1-frac:frac)*(max-min);};
+doc.addEventListener('pointerdown',e=>{const root=e.target.closest('[data-behavior=\"slider\"]');if(!root||e.button!==0)return;const {thumb,track}=slParts(root);if(!thumb||(!track.contains(e.target)&&e.target!==thumb))return;e.preventDefault();slSet(root,slFromPointer(root,e),false);thumb.focus({preventScroll:true});const move=ev=>slSet(root,slFromPointer(root,ev),false);const up=ev=>{doc.removeEventListener('pointermove',move);doc.removeEventListener('pointerup',up);doc.removeEventListener('pointercancel',up);slSet(root,slFromPointer(root,ev),true);};doc.addEventListener('pointermove',move);doc.addEventListener('pointerup',up);doc.addEventListener('pointercancel',up);});
+doc.addEventListener('keydown',e=>{const thumb=e.target.closest('[role=\"slider\"]');const root=thumb&&thumb.closest('[data-behavior=\"slider\"]');if(!root)return;const min=slNum(thumb,'aria-valuemin',0),max=slNum(thumb,'aria-valuemax',100),step=Number(root.dataset.step||1)||1,cur=slNum(thumb,'aria-valuenow',min);let v=null;if(e.key==='ArrowRight'||e.key==='ArrowUp')v=cur+step;else if(e.key==='ArrowLeft'||e.key==='ArrowDown')v=cur-step;else if(e.key==='PageUp')v=cur+step*10;else if(e.key==='PageDown')v=cur-step*10;else if(e.key==='Home')v=min;else if(e.key==='End')v=max;if(v!==null){e.preventDefault();slSet(root,v,true);}});
+
 /* ---- init / hydrate */
-const hydrate=(root)=>{root=root||doc;root.querySelectorAll('[data-behavior=\"tabs\"]').forEach(initTabs);root.querySelectorAll('[data-behavior=\"radiogroup\"]').forEach(initRadiogroup);root.querySelectorAll('[data-behavior=\"toast\"] .dds-ext-toast').forEach(armToast);if(root!==doc&&root.matches){if(root.matches('[data-behavior=\"tabs\"]'))initTabs(root);if(root.matches('[data-behavior=\"radiogroup\"]'))initRadiogroup(root);}return root;};
-const api=Object.freeze({hydrate,toast,openDialog,closeDialog,openMenu,closeMenu,selectTab,version:'0.1.0'});
+const hydrate=(root)=>{root=root||doc;root.querySelectorAll('[data-behavior=\"tabs\"]').forEach(initTabs);root.querySelectorAll('[data-behavior=\"radiogroup\"]').forEach(initRadiogroup);root.querySelectorAll('[data-behavior=\"toast\"] .dds-ext-toast').forEach(armToast);root.querySelectorAll('[data-behavior=\"tooltip\"]').forEach(armTooltip);root.querySelectorAll('[data-behavior=\"slider\"]').forEach(initSlider);if(root!==doc&&root.matches){if(root.matches('[data-behavior=\"tabs\"]'))initTabs(root);if(root.matches('[data-behavior=\"radiogroup\"]'))initRadiogroup(root);if(root.matches('[data-behavior=\"tooltip\"]'))armTooltip(root);if(root.matches('[data-behavior=\"slider\"]'))initSlider(root);}return root;};
+const api=Object.freeze({hydrate,toast,openDialog,closeDialog,openMenu,closeMenu,selectTab,openPopover,closePopover,place,version:'0.2.0'});
 globalThis.jpGoDds=Object.assign(globalThis.jpGoDds||{},{behavior:api});
 if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',()=>hydrate());else hydrate();
 })();
@@ -199,10 +288,23 @@ if(doc.readyState==='loading')doc.addEventListener('DOMContentLoaded',()=>hydrat
 [data-menu-popup][data-chrome=float]{position:absolute;inset-inline-end:0;top:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)));z-index:var(--hig-z-float,40);min-inline-size:13rem;max-inline-size:min(24rem,calc(100vw - 2rem));box-sizing:border-box}
 [data-behavior=menu][data-menu-align=start] [data-menu-popup][data-chrome=float]{inset-inline-end:auto;inset-inline-start:0}
 [data-behavior=menu][data-menu-placement=up] [data-menu-popup][data-chrome=float]{top:auto;inset-block-end:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)))}
-[data-behavior=combobox]{position:relative}
-[data-behavior=combobox] [role=listbox][data-chrome=float]{position:absolute;inset-inline:0;top:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)));z-index:var(--hig-z-float,40);max-block-size:min(20rem,60dvh);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;margin:0;padding:var(--hig-spacing-2,calc(8 / 16 * 1rem));list-style:none;background:var(--hig-color-system-background,var(--color-neutral-white));color:var(--hig-color-label,var(--color-neutral-solid-gray-800));border:1px solid var(--hig-color-separator,var(--color-neutral-solid-gray-300));border-radius:var(--hig-radius-sm,calc(8 / 16 * 1rem));box-shadow:0 8px 24px rgb(0 0 0 / 16%)}
-[data-behavior=combobox] [role=option]{cursor:pointer}
-[data-behavior=combobox] [role=option][aria-selected=true]{outline:2px solid var(--hig-color-tint,var(--color-key-900));outline-offset:-2px}
+[data-behavior=combobox],[data-behavior=select]{position:relative}
+[data-behavior=combobox] [role=listbox][data-chrome=float],[data-behavior=select] [role=listbox][data-chrome=float]{position:absolute;inset-inline:0;top:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)));z-index:var(--hig-z-float,40);max-block-size:min(20rem,60dvh);overflow:auto;overscroll-behavior:contain;box-sizing:border-box;margin:0;padding:var(--hig-spacing-2,calc(8 / 16 * 1rem));list-style:none;background:var(--hig-color-system-background,var(--color-neutral-white));color:var(--hig-color-label,var(--color-neutral-solid-gray-800));border:1px solid var(--hig-color-separator,var(--color-neutral-solid-gray-300));border-radius:var(--hig-radius-sm,calc(8 / 16 * 1rem));box-shadow:0 8px 24px rgb(0 0 0 / 16%)}
+[data-behavior=combobox] [role=option],[data-behavior=select] [role=option]{cursor:pointer}
+[data-behavior=combobox] [role=option][aria-selected=true],[data-behavior=select] [role=option][aria-selected=true]{outline:2px solid var(--hig-color-tint,var(--color-key-900));outline-offset:-2px}
+[data-behavior=select] [role=combobox]{inline-size:100%;justify-content:space-between}
+[data-chrome=float][data-placement=up]{top:auto;inset-block-end:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)))}
+[data-behavior=popover]{position:relative;display:inline-block}
+[data-popover-panel][data-chrome=float]{position:absolute;inset-inline-start:0;top:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)));z-index:var(--hig-z-float,40);min-inline-size:14rem;max-inline-size:min(24rem,calc(100vw - 2rem));box-sizing:border-box;padding:var(--hig-spacing-4,1rem);border-radius:var(--hig-radius-sm,calc(8 / 16 * 1rem));background:var(--hig-color-system-background,var(--color-neutral-white));border:1px solid var(--hig-color-separator,var(--color-neutral-solid-gray-420));box-shadow:0 8px 24px rgb(0 0 0 / 12%)}
+[data-behavior=popover][data-popover-align=end] [data-popover-panel][data-chrome=float]{inset-inline-start:auto;inset-inline-end:0}
+[data-behavior=tooltip]{position:relative;display:inline-block}
+[data-behavior=tooltip] [role=tooltip]{position:absolute;inset-inline-start:50%;translate:-50% 0;inset-block-end:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)));z-index:var(--hig-z-toast,80);box-sizing:border-box;padding:var(--hig-spacing-1,calc(4 / 16 * 1rem)) var(--hig-spacing-2,calc(8 / 16 * 1rem));border-radius:var(--hig-radius-xs,calc(6 / 16 * 1rem));background:var(--hig-color-label,var(--color-neutral-solid-gray-900));color:var(--hig-color-system-background,var(--color-neutral-white));font-size:var(--hig-text-caption1-font-size,calc(12 / 16 * 1rem));line-height:var(--hig-text-caption1-line-height,calc(16 / 16 * 1rem));white-space:nowrap;max-inline-size:min(20rem,calc(100vw - 2rem));pointer-events:none}
+[data-behavior=tooltip] [role=tooltip][data-placement=down]{inset-block-end:auto;top:calc(100% + var(--hig-spacing-1,calc(4 / 16 * 1rem)))}
+[data-behavior=slider]{--slider-value:0%;position:relative;display:block;inline-size:100%;padding-block:var(--hig-spacing-3,calc(12 / 16 * 1rem));touch-action:none}
+[data-slider-track]{position:relative;block-size:.25rem;border-radius:9999px;background:var(--hig-color-separator,var(--color-neutral-solid-gray-420))}
+[data-slider-track]::before{content:'';position:absolute;inset-block:0;inset-inline-start:0;inline-size:var(--slider-value);border-radius:inherit;background:var(--hig-color-tint,var(--color-key-900))}
+[data-behavior=slider] [role=slider]{position:absolute;top:50%;inset-inline-start:var(--slider-value);translate:-50% -50%;inline-size:1.5rem;block-size:1.5rem;border-radius:50%;box-sizing:border-box;background:var(--hig-color-system-background,var(--color-neutral-white));border:2px solid var(--hig-color-tint,var(--color-key-900));cursor:grab}
+[data-behavior=slider] [role=slider]:focus-visible{outline:2px solid var(--hig-color-tint,var(--color-key-900));outline-offset:2px}
 dialog[data-behavior=dialog]{z-index:var(--hig-z-modal,60)}
 [data-behavior=toast]{position:fixed;inset-inline:0;inset-block-end:calc(var(--hig-spacing-4,1rem) + env(safe-area-inset-bottom,0px));z-index:var(--hig-z-toast,80);display:grid;justify-items:center;gap:var(--hig-spacing-2,calc(8 / 16 * 1rem));margin:0;padding:0 var(--hig-spacing-4,1rem);pointer-events:none}
 .dds-ext-toast{pointer-events:auto;display:flex;align-items:center;gap:var(--hig-spacing-3,calc(12 / 16 * 1rem));max-inline-size:min(36rem,100%);min-block-size:2.75rem;padding:var(--hig-spacing-2,calc(8 / 16 * 1rem)) var(--hig-spacing-2,calc(8 / 16 * 1rem)) var(--hig-spacing-2,calc(8 / 16 * 1rem)) var(--hig-spacing-4,1rem);border-radius:var(--hig-radius-sm,calc(8 / 16 * 1rem));background:var(--hig-color-label,var(--color-neutral-solid-gray-800));color:var(--hig-color-system-background,var(--color-neutral-white));box-shadow:0 8px 24px rgb(0 0 0 / 24%);opacity:1;transition:opacity var(--hig-motion-reveal,180ms) ease-out,translate var(--hig-motion-reveal,180ms) ease-out}
