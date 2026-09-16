@@ -1,0 +1,162 @@
+#!/usr/bin/env kbb
+;; The behavior layer measured in a real browser (owner direction 2026-09-16:
+;; a Radix-shaped headless layer for DADS). The string tests pin the markers;
+;; this pins what a person gets: a dialog that traps and returns focus, a menu
+;; that opens on the keyboard and closes on Escape / outside, tabs on arrows
+;; with one panel visible, a combobox that filters and chooses, a toast that
+;; leaves by itself, a radiogroup whose arrows choose. Two bands (390 / 1280).
+;;
+;;   kbb --backend sci --classpath "src:test:../html/src:../css/src:../text/src" test/behavior_browser_test.cljk
+;;
+;; Same shape as app-kotoba-cloud/test/account-browser.cljk: the document is
+;; rendered here from the wrappers, served by a child node process, driven by
+;; playwright from the same child. exit 0 pass / 1 an assertion failed /
+;; 2 REFUSED (playwright or a browser is not there — never a pass).
+(ns behavior-browser-test
+  (:require ["node:child_process" :as cp]
+            ["node:fs" :as fs]
+            ["node:os" :as os]
+            ["node:path" :as node-path]
+            ["node:process" :as proc]
+            [html.core :as html]
+            [jp-go-dds.core :as dds]
+            [jp-go-dds.behavior :as behavior]
+            [jp-go-dds.tokens :as tokens]))
+
+(def port 8867)
+
+(def document
+  (str "<!doctype html><html lang=\"ja\"><head><meta charset=\"utf-8\">"
+       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">"
+       "<link rel=\"stylesheet\" href=\"/dds.css\"><style>" tokens/bridge-css behavior/css
+       "main{padding:1rem}section{margin-block:1rem}</style>"
+       "<script src=\"/behavior.js\" defer></script></head><body><main id=\"main\">"
+       (html/->html
+        [:div
+         [:section {:id "s-dialog"}
+          (dds/button "開く" {:id "open-dialog" :attrs (behavior/dialog-open-attrs "dlg")})
+          (dds/modal-dialog {:id "dlg" :heading "確認" :actions [(dds/button "OK" {:id "dlg-ok" :attrs (behavior/dialog-close-attrs "dlg")})]}
+                            [:p "本文"] (dds/input-text {:id "dlg-input"}))]
+         [:section {:id "s-menu"}
+          (dds/menu-list-box {:id "menu" :label "メニュー"} [{:label "一つ目" :href "#one"} {:label "二つ目" :attrs {:id "item-two"}} {:label "三つ目" :href "#three"}])
+          [:p {:id "after-menu"} "after"]]
+         [:section {:id "s-tabs"}
+          (dds/tab {:id "tabs"} [{:id "a" :label "A" :panel [:p {:id "panel-a-text"} "a"]} {:id "b" :label "B" :panel [:p {:id "panel-b-text"} "b"]} {:id "c" :label "C" :panel [:p "c"]}])]
+         [:section {:id "s-combo"}
+          (dds/combobox {:id "pref" :name "pref" :label "都道府県"} [{:value "13" :label "東京都" :keywords "tokyo とうきょう"} {:value "27" :label "大阪府" :keywords "osaka おおさか"} {:value "01" :label "北海道" :keywords "hokkaido"}])]
+         [:section {:id "s-radio"}
+          [:div {:role "radiogroup" :aria-label "表示" :data-behavior "radiogroup"}
+           [:button {:type "button" :role "radio" :aria-checked "true" :id "r-light" :class "dads-button" :data-type "outline" :data-size "sm"} "light"]
+           [:button {:type "button" :role "radio" :aria-checked "false" :id "r-dark" :class "dads-button" :data-type "outline" :data-size "sm"} "dark"]
+           [:button {:type "button" :role "radio" :aria-checked "false" :id "r-system" :class "dads-button" :data-type "outline" :data-size "sm"} "system"]]]
+         [:section {:id "s-disclosure"}
+          [:button {:type "button" :id "more" :data-behavior "disclosure" :aria-expanded "false" :aria-controls "more-panel" :class "dads-button" :data-type "text" :data-size "sm"} "もっと見る"]
+          [:div {:id "more-panel" :hidden true} [:p "hidden until asked"]]]
+         (dds/toast-region {})])
+       "<script>document.addEventListener('click',e=>{const r=e.target.closest('[role=radio]');if(r){r.closest('[role=radiogroup]').querySelectorAll('[role=radio]').forEach(x=>x.setAttribute('aria-checked',x===r?'true':'false'));}});</script>"
+       "</main></body></html>"))
+
+(def script
+  (str "
+const http=require('node:http');const fs=require('node:fs');
+const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'/Users/junkawasaki/github/com-junkawasaki/node_modules/playwright');
+const dir=process.env.BEHAVIOR_DIR;
+const server=http.createServer((req,res)=>{const p=new URL(req.url,'http://x').pathname;const f={'/':'index.html','/index.html':'index.html','/dds.css':'dds.css','/behavior.js':'behavior.js'}[p];if(!f){res.writeHead(404).end();return;}res.setHeader('content-type',f.endsWith('.js')?'text/javascript':f.endsWith('.css')?'text/css':'text/html');res.end(fs.readFileSync(dir+'/'+f));});
+(async()=>{
+ await new Promise(r=>server.listen(" port ",'127.0.0.1',r));
+ const browser=await chromium.launch({headless:true,channel:process.env.BROWSER_CHANNEL||'chrome'});
+ const errors=[];let n=0;
+ const ok=(c,m)=>{if(!c)throw new Error('ASSERT '+m);n++;};
+ const active=p=>p.evaluate(()=>document.activeElement&&(document.activeElement.id||document.activeElement.className||document.activeElement.tagName));
+ for(const width of [390,1280]){
+  const page=await browser.newPage({viewport:{width,height:800}});page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('http://127.0.0.1:" port "/');
+  await page.waitForFunction(()=>globalThis.jpGoDds&&globalThis.jpGoDds.behavior);
+  ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),width+' no horizontal overflow');
+  // --- dialog: opens modal, focus lands inside, Escape closes, focus returns to the opener
+  await page.click('#open-dialog');
+  ok(await page.evaluate(()=>document.getElementById('dlg').open),'dialog open');
+  ok(await page.evaluate(()=>document.getElementById('dlg').matches(':modal')),'dialog is modal (showModal)');
+  ok(await page.evaluate(()=>document.getElementById('dlg').contains(document.activeElement)),'focus inside the dialog, got '+await active(page));
+  await page.keyboard.press('Tab');await page.keyboard.press('Tab');await page.keyboard.press('Tab');await page.keyboard.press('Tab');await page.keyboard.press('Tab');
+  ok(await page.evaluate(()=>document.getElementById('dlg').contains(document.activeElement)),'Tab stays inside the modal (trap), got '+await active(page));
+  await page.keyboard.press('Escape');
+  ok(!(await page.evaluate(()=>document.getElementById('dlg').open)),'Escape closed');
+  ok((await active(page))==='open-dialog','focus returned to the opener, got '+await active(page));
+  await page.click('#open-dialog');await page.click('#dlg-ok');
+  ok(!(await page.evaluate(()=>document.getElementById('dlg').open)),'command=close closes (invoker pair, native or polyfilled)');
+  ok((await active(page))==='open-dialog','focus returned after OK');
+  // --- menu: click opens with focus on the first item, arrows move, Escape closes to the opener, outside click closes
+  await page.click('#menu-opener');
+  ok(await page.evaluate(()=>!document.querySelector('#menu [data-menu-popup]').hidden),'menu open');
+  ok(await page.evaluate(()=>document.getElementById('menu-opener').getAttribute('aria-expanded')==='true'),'aria-expanded true');
+  ok(await page.evaluate(()=>document.activeElement.getAttribute('role')==='menuitem'),'first item focused, got '+await active(page));
+  const layer=await page.evaluate(()=>{const m=document.querySelector('#menu [data-menu-popup]');const cs=getComputedStyle(m);return {pos:cs.position,z:cs.zIndex};});
+  ok(layer.pos==='absolute'&&Number(layer.z)>=40,'popup floats: '+JSON.stringify(layer));
+  await page.keyboard.press('ArrowDown');ok((await active(page))==='item-two','ArrowDown to the second item, got '+await active(page));
+  await page.keyboard.press('End');ok(await page.evaluate(()=>document.activeElement.textContent.trim()==='三つ目'),'End to the last');
+  await page.keyboard.press('Escape');
+  ok(await page.evaluate(()=>document.querySelector('#menu [data-menu-popup]').hidden),'Escape closed the menu');
+  ok((await active(page))==='menu-opener','focus back on the opener, got '+await active(page));
+  await page.focus('#menu-opener');await page.keyboard.press('ArrowDown');
+  ok(await page.evaluate(()=>!document.querySelector('#menu [data-menu-popup]').hidden),'ArrowDown on the opener opens');
+  await page.mouse.click(5,5);
+  ok(await page.evaluate(()=>document.querySelector('#menu [data-menu-popup]').hidden),'outside click closed');
+  // --- tabs: one panel visible, ArrowRight selects the next and moves focus, End to the last, click on the anchor does not navigate
+  ok(await page.evaluate(()=>document.getElementById('tabs-panel-a').hidden===false&&document.getElementById('tabs-panel-b').hidden===true),'one panel visible at load');
+  await page.focus('#tabs-tab-a');await page.keyboard.press('ArrowRight');
+  ok(await page.evaluate(()=>document.getElementById('tabs-tab-b').getAttribute('aria-selected')==='true'&&document.activeElement.id==='tabs-tab-b'),'ArrowRight selected + focused B');
+  ok(await page.evaluate(()=>document.getElementById('tabs-panel-b').hidden===false&&document.getElementById('tabs-panel-a').hidden===true),'panel B shown, A hidden');
+  await page.keyboard.press('End');ok(await page.evaluate(()=>document.activeElement.id==='tabs-tab-c'),'End to the last tab');
+  await page.click('#tabs-tab-a');
+  ok(await page.evaluate(()=>location.hash===''&&document.getElementById('tabs-tab-a').getAttribute('aria-selected')==='true'),'click selects without navigating (hash stays empty)');
+  // --- combobox: typing filters, ArrowDown activates, Enter chooses into the hidden input, Escape closes
+  await page.fill('#pref','おお');
+  ok(await page.evaluate(()=>!document.getElementById('pref-listbox').hidden),'listbox opened on input');
+  ok(await page.evaluate(()=>[...document.querySelectorAll('#pref-listbox [role=option]')].filter(o=>!o.parentElement.hidden).map(o=>o.textContent.trim()).join(','))==='大阪府','filtered to 大阪府');
+  await page.keyboard.press('ArrowDown');
+  ok(await page.evaluate(()=>document.getElementById('pref').getAttribute('aria-activedescendant')==='pref-listbox-1'),'ArrowDown activates the visible option');
+  await page.keyboard.press('Enter');
+  ok(await page.evaluate(()=>document.querySelector('[data-combobox-value]').value==='27'&&document.getElementById('pref').value==='大阪府'&&document.getElementById('pref-listbox').hidden),'Enter chose: hidden input 27, input shows the label, list closed');
+  await page.fill('#pref','zzz');
+  ok(await page.evaluate(()=>!document.querySelector('[data-combobox-empty]').hidden),'no match shows the empty message');
+  ok(await page.evaluate(()=>document.querySelector('[data-combobox-value]').value===''),'typing again clears the chosen value');
+  await page.keyboard.press('Escape');ok(await page.evaluate(()=>document.getElementById('pref-listbox').hidden),'Escape closed the list');
+  // --- radiogroup: ArrowRight moves and chooses (the host's click handler ran)
+  await page.focus('#r-light');await page.keyboard.press('ArrowRight');
+  ok(await page.evaluate(()=>document.activeElement.id==='r-dark'&&document.getElementById('r-dark').getAttribute('aria-checked')==='true'&&document.getElementById('r-light').getAttribute('aria-checked')==='false'),'ArrowRight chose dark');
+  ok(await page.evaluate(()=>document.getElementById('r-dark').tabIndex===0&&document.getElementById('r-light').tabIndex===-1),'roving tabindex followed');
+  // --- disclosure
+  await page.click('#more');
+  ok(await page.evaluate(()=>!document.getElementById('more-panel').hidden&&document.getElementById('more').getAttribute('aria-expanded')==='true'),'disclosure opened');
+  await page.click('#more');ok(await page.evaluate(()=>document.getElementById('more-panel').hidden),'disclosure closed');
+  // --- toast: appears in the live region, leaves by itself; a sticky one stays; the close button dismisses
+  await page.evaluate(()=>jpGoDds.behavior.toast({text:'保存しました',timeout:400}));
+  ok(await page.evaluate(()=>document.querySelectorAll('[data-behavior=toast] .dds-ext-toast').length===1),'toast appended');
+  const tl=await page.evaluate(()=>{const r=document.querySelector('[data-behavior=toast]');const cs=getComputedStyle(r);return {pos:cs.position,z:cs.zIndex};});
+  ok(tl.pos==='fixed'&&Number(tl.z)>=80,'toast region is a fixed layer: '+JSON.stringify(tl));
+  await page.waitForFunction(()=>document.querySelectorAll('[data-behavior=toast] .dds-ext-toast').length===0,null,{timeout:3000});n++;
+  await page.evaluate(()=>jpGoDds.behavior.toast({text:'残る',timeout:0}));
+  await page.waitForTimeout(700);
+  ok(await page.evaluate(()=>document.querySelectorAll('[data-behavior=toast] .dds-ext-toast').length===1),'timeout 0 stays');
+  await page.click('[data-toast-close]');
+  await page.waitForFunction(()=>document.querySelectorAll('[data-behavior=toast] .dds-ext-toast').length===0,null,{timeout:3000});n++;
+  await page.close();
+  console.log('PASS',width);
+ }
+ await browser.close();server.close();
+ if(errors.length){console.log('PAGE ERRORS',JSON.stringify(errors));process.exit(1);}
+ console.log('ASSERTIONS\\t'+n);
+})().catch(e=>{console.error(String(e&&e.stack||e));server.close();process.exit(/Executable doesn't exist|Cannot find module|browserType.launch/.test(String(e))?2:1);});
+"))
+
+(defn -main []
+  (let [dir (fs/mkdtempSync (node-path/join (.tmpdir os) "jp-go-dds-behavior-"))]
+    (fs/writeFileSync (node-path/join dir "index.html") document)
+    (fs/writeFileSync (node-path/join dir "dds.css") (fs/readFileSync "resources/jp_go_dds/dds.css"))
+    (fs/writeFileSync (node-path/join dir "behavior.js") behavior/script)
+    (let [r (cp/spawnSync "node" #js ["-e" script] #js {:stdio "inherit" :cwd (.cwd proc)
+                                                       :env (js/Object.assign #js {} (.-env proc) #js {:BEHAVIOR_DIR dir})})]
+      (.exit proc (or (.-status r) 2)))))
+
+(-main)
