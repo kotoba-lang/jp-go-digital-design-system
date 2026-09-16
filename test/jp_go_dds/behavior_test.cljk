@@ -26,7 +26,12 @@
   (testing "the platform pieces each behaviour is built on are named in the script"
     (doseq [needle ["showModal()" "commandfor" "aria-expanded" "aria-activedescendant" "aria-selected" "tabindex"
                     "Escape" "ArrowDown" "ArrowUp" "ArrowLeft" "ArrowRight" "Home" "End" "Tab"
-                    "prefers-reduced-motion" "data-timeout" "role=\"menuitem\"" "jp-go-dds:menu-open"]]
+                    "prefers-reduced-motion" "data-timeout" "role=\"menuitem\"" "jp-go-dds:menu-open"
+                    ;; opening a menu moves focus into it without scrolling
+                    ;; its scroll container: measured 2026-09-16 on the shell
+                    ;; rail band (overflow-x:auto), the first item's focus
+                    ;; scrolled the rail 48px and the chip left its place
+                    "focus({preventScroll:true})"]]
       (is (str/includes? behavior/script needle) needle)))
   (testing "the layer rules the audit measures are in css, on the token contract"
     (is (re-find #"\[data-menu-popup\]\[data-chrome=float\]\{position:absolute;[^}]*z-index:var\(--hig-z-float,40\)" behavior/css))
