@@ -52,7 +52,7 @@
                        {:git/url "https://github.com/kotoba-lang/amu.git"
                         ;; string=? / string-contains? are :bool (1e21a1f).
                         ;; 875e3882 still typed them :i64.
-                        :git/sha "1e21a1f56613d7d4c7628af1945ebf1cf7862ff3"}}
+                        :git/sha "203a957efa36c6eadd6b9f523266dd6f4e46f513"}}
          :main-opts   ["-m" "cognitect.test-runner"]
          :exec-fn cognitect.test-runner.api/test}
   ;; Regenerate the shipped decision-core KIR. Combine with :test, which is
