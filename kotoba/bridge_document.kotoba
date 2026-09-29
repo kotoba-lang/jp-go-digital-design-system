@@ -28,7 +28,7 @@
 ;; The `--hig-*` → DADS bridge, as a logical `:document` value.
 ;;
 ;; W6 next-cohort slice for `jp-go-digital-design-system` (ADR-2607279200 /
-;; migration plan W6 / com-junkawasaki root CLAUDE.md "UI/UX 標準"). The design
+;; migration plan W6 / com-junkawasaki root AGENTS.md "UI/UX 標準"). The design
 ;; system cohort reached Delivery-6 5/5 for css → html → shitsuke →
 ;; liquid-glass-ui → kotoba-ui; DADS became this workspace's BASE design system
 ;; on 2026-08-05 and carries the same `--hig-*` token contract on top of DADS
